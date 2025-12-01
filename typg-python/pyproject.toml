@@ -1,0 +1,21 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "typg-python"
+version = "0.0.0"
+description = "PyO3 bindings for typg-core (made by FontLab https://www.fontlab.com/)"
+authors = [{ name = "FontLab" }]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["fire>=0.7.1"]
+
+[project.scripts]
+typgpy = "typg_python.cli:main"
+
+[tool.maturin]
+features = ["extension-module"]
+python-source = "python"
+module-name = "typg_python._typg_python"

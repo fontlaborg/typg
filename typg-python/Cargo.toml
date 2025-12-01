@@ -1,0 +1,27 @@
+[package]
+name = "typg-python"
+version = "0.0.0"
+edition = "2021"
+authors = ["FontLab"]
+description = "PyO3 bindings for typg-core (made by FontLab https://www.fontlab.com/)"
+license = "MIT"
+homepage = "https://www.fontlab.com/"
+repository = "https://github.com/fontlaborg/typg"
+
+[lib]
+name = "typg_python"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+anyhow = "1.0"
+pyo3 = { version = "0.26", features = ["abi3-py310"] }
+regex = "1.11"
+typg-core = { path = "../typg-core" }
+
+[dev-dependencies]
+indoc = "2.0"
+pyo3 = { version = "0.26", features = ["abi3-py310"] }

@@ -1,0 +1,12 @@
+[workspace]
+members = ["typg-core", "typg-cli", "typg-python"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+homepage = "https://www.fontlab.com/"
+authors = ["FontLab"]
+
+[workspace.metadata]
+description = "typg workspace — ultra-fast font search/discovery toolkit"
