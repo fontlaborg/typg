@@ -13,3 +13,4 @@ made by FontLab https://www.fontlab.com/
 - Added columnar + colorized text output to `typg-cli find`, with help snapshots and flag parsing coverage.
 - Introduced criterion bench `codepoints` to compare typg-core codepoint parsing against the original fontgrep implementation.
 - Added `typg-python` crate with PyO3 bindings for `find`/cached filtering, Fire-based `typgpy` CLI wrapper, maturin `pyproject.toml`, and Rust-side binding tests to seed Python parity work.
+- Aligned publish pipeline to git tags via hatch-vcs, renamed the PyPI package to `typg`, and synced Cargo crate versions/dependency constraints for crates.io releases.

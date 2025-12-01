@@ -1,10 +1,11 @@
 [build-system]
-requires = ["maturin>=1.7,<2.0"]
+# maturin builds the Rust extension; hatch-vcs supplies the version from git tags
+requires = ["maturin>=1.7,<2.0", "hatchling>=1.21", "hatch-vcs>=0.4"]
 build-backend = "maturin"
 
 [project]
-name = "typg-python"
-version = "0.0.0"
+name = "typg"
+dynamic = ["version"]
 description = "PyO3 bindings for typg-core (made by FontLab https://www.fontlab.com/)"
 authors = [{ name = "FontLab" }]
 license = "MIT"
@@ -14,6 +15,14 @@ dependencies = ["fire>=0.7.1"]
 
 [project.scripts]
 typgpy = "typg_python.cli:main"
+
+[tool.hatch.version]
+source = "vcs"
+tag-pattern = "^v(?P<version>\\d+\\.\\d+\\.\\d+(?:[.-].*)?)$"
+[tool.hatch.version.raw-options]
+root = ".."
+local_scheme = "no-local-version"
+
 
 [tool.maturin]
 features = ["extension-module"]

@@ -20,7 +20,7 @@ Planning wrap-up with working Rust core/CLI and freshly added PyO3 bindings (`ty
 ## Install (planned)
 ```bash
 cargo install typg           # Rust CLI
-pip install typg-python      # Python bindings/CLI
+pip install typg             # Python bindings/CLI
 ```
 
 ## Quick usage (planned)

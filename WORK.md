@@ -4,6 +4,7 @@ made by FontLab https://www.fontlab.com/
 
 | Date (UTC) | Goal | Notes | Tests |
 | --- | --- | --- | --- |
+| 2025-12-01 | Publish flow: crates.io + PyPI naming/version | Added hatch-vcs git-tag version sync in publish.sh, renamed PyPI package to `typg`, synced Cargo versions to 1.0.1, added `typg` shim package | maturin build --release --features extension-module |
 | 2025-12-01 | PyO3 bindings + Fire CLI scaffold | Added `typg-python` crate with `find`/`filter_cached` bindings returning dicts, maturin `pyproject.toml`, and Fire-based `typgpy` wrapper; updated PLAN/TODO/README/CHANGELOG. | cargo test -p typg-python --tests; cargo test --workspace |
 | 2025-12-01 | Bootstrap planning | Created PLAN/WORK/CHANGELOG, inventoried typf/fontgrep/fontgrepc/fontations/fontlift, defined success metrics and reuse choices | Not run (no test targets yet) |
 | 2025-12-01 | Phase 1 spec + docs | Added docs/spec.md with fontgrep/fontgrepc parity matrix and crate layout, updated README.md and CLAUDE.md, checked off PLAN/TODO items | Not run (docs-only) |

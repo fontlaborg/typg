@@ -1,17 +1,21 @@
 [package]
 name = "typg-cli"
-version = "0.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["FontLab"]
 description = "CLI for typg (made by FontLab https://www.fontlab.com/)"
 license = "MIT"
 homepage = "https://www.fontlab.com/"
 
+[[bin]]
+name = "typg"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 regex = "1.11"
-typg-core = { path = "../typg-core" }
+typg-core = { version = "=1.0.1", path = "../typg-core" }
 
 [dev-dependencies]
 tempfile = "3.10"
