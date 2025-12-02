@@ -54,6 +54,7 @@ made by FontLab https://www.fontlab.com/
 - [ ] Update `README.md` with overview, install, usage examples (Rust, CLI, Python)
 - [ ] Create `ARCHITECTURE.md` describing data flow + reuse points from typf
 - [ ] Add CI workflow referencing typf + fontsimi pipelines
+- [x] Add release workflow to publish crates (typg-core/typg-cli/typg-python) and PyPI wheels on semver tags
 - [ ] Document migration guidance for existing fontgrep/fontgrepc users
 - [ ] Record benchmarks + known limitations in `WORK.md` and `CHANGELOG.md`
 

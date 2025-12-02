@@ -14,3 +14,4 @@ made by FontLab https://www.fontlab.com/
 - Introduced criterion bench `codepoints` to compare typg-core codepoint parsing against the original fontgrep implementation.
 - Added `typg-python` crate with PyO3 bindings for `find`/cached filtering, Fire-based `typgpy` CLI wrapper, maturin `pyproject.toml`, and Rust-side binding tests to seed Python parity work.
 - Aligned publish pipeline to git tags via hatch-vcs, renamed the PyPI package to `typg`, and synced Cargo crate versions/dependency constraints for crates.io releases.
+- Swapped the Rust CLI binary name to `typg`, fixed build/publish scripts for git-tag semver + tokenized publishing, and added a GitHub Actions release flow that builds cross-platform wheels, publishes crates, and attaches artifacts on `vN.N.N` tags.

@@ -230,7 +230,8 @@ sync_versions_to_cargo() {
 sync_only() {
     log_info "Syncing versions from git tag via hatch-vcs (no publish)"
 
-    if ! check_dependencies; then
+    if ! command -v hatch >/dev/null 2>&1; then
+        log_error "hatch is required to resolve version from git tags"
         return 1
     fi
 
@@ -370,9 +371,15 @@ publish_python_package() {
         cd "$PROJECT_ROOT"
         return 1
     fi
-    
+
     # Publish to PyPI using uv
-    if uv publish "$wheel_file"; then
+    local publish_token="${PYPI_TOKEN:-${UV_PUBLISH_TOKEN:-}}"
+    local publish_args=()
+    if [[ -n "$publish_token" ]]; then
+        publish_args+=(--token "$publish_token")
+    fi
+
+    if uv publish "${publish_args[@]}" "$wheel_file"; then
         log_success "Published $package_name to PyPI"
         cd "$PROJECT_ROOT"
         return 0
@@ -561,7 +568,7 @@ main() {
                 usage
                 exit 0
                 ;;
-            publish|rust-only|python-only|check|clean)
+            publish|rust-only|python-only|check|clean|sync)
                 command="$1"
                 shift
                 ;;
@@ -581,12 +588,18 @@ main() {
         python-only)
             python_only=true
             ;;
+        sync)
+            command="sync"
+            ;;
     esac
     
     # Execute command
     case "$command" in
         publish|rust-only|python-only)
             publish_all "$rust_only" "$python_only"
+            ;;
+        sync)
+            sync_only
             ;;
         check)
             check_status

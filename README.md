@@ -4,34 +4,47 @@ made by FontLab https://www.fontlab.com/
 Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typg aims for flag-for-flag parity with `fontgrep` (live scan) and `fontgrepc` (cached), while reusing fontations/typf assets to stay lean.
 
 ## Status
-Planning wrap-up with working Rust core/CLI and freshly added PyO3 bindings (`typg-python`) plus a Fire-based shim. Not published yet; see `docs/spec.md` for the comparison matrix and planned layout.
+Rust core and CLI are functional for live scans; cache subcommands and fuller Python test coverage are in progress. See `docs/spec.md` for the parity matrix and `ARCHITECTURE.md` for data flow.
 
-## What it will do
-- Live and cached font discovery with filters for axes, features, scripts, tables, Unicode coverage, name regex, and text samples.
-- Rust CLI (`typg`) mirroring fontgrep options, plus cache subcommands similar to fontgrepc.
-- Python bindings (`typg-python`) exposing the same search API and a Fire/Typer CLI shim.
-- JSON/NDJSON outputs aligned across Rust and Python.
-
-## How it will be built
-- `typg-core`: Rust search engine using `read-fonts`/`skrifa` (fontations) and typf-fontdb where it stays lightweight.
-- `typg-cli`: clap-based CLI with optional cache feature flag.
-- `typg-python`: PyO3 bindings packaged with `maturin`; thin Fire CLI wrapper for parity.
-
-## Install (planned)
+## Install (from source today)
 ```bash
-cargo install typg           # Rust CLI
-pip install typg             # Python bindings/CLI
+# Rust CLI
+cargo install --path typg-cli
+
+# Python bindings/CLI (uv-based)
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install maturin
+maturin develop --manifest-path typg-python/Cargo.toml --locked
 ```
 
-## Quick usage (planned)
+## Quick usage
 ```bash
-# Live scan
+# Live scan for small caps + Latin coverage
 typg find -f smcp -s latn ~/Fonts
 
-# Cached
-typg add ~/Fonts
-typg find --cache-path ~/.local/share/typg/cache.db --variable -u "U+0041-U+005A"
+# Pipe paths on stdin
+fd .ttf ~/Fonts | typg find --stdin-paths --ndjson
 ```
+
+### Python
+```python
+from typg_python import find
+
+matches = find(paths=["~/Fonts"], scripts=["latn"], features=["smcp"])
+for m in matches:
+    print(m["path"], m["names"][0])
+```
+
+## Build & release
+- macOS local builds: `./build.sh [release|debug]` emits the `typg` Rust CLI and the `typg` Python wheel/`typgpy` CLI (version comes from git tags via hatch-vcs).
+- Manual publishing: `./publish.sh [publish|rust-only|python-only|sync|check]` syncs Cargo crate versions to the current semver git tag, then pushes crates to crates.io and wheels to PyPI when credentials are present.
+- GitHub Actions: `release.yml` triggers on `vN.N.N` tags to build manylinux/macOS/Windows wheels, publish to PyPI, publish crates (`typg-core`, `typg-cli`, `typg-python`) to crates.io, and attach wheels to the GitHub release.
+
+## Migration notes (fontgrep/fontgrepc → typg)
+- Flags mirror fontgrep; see `docs/spec.md` for any divergence.
+- Cache subcommands are being built; until then typg only performs live scans.
+- NDJSON output matches fontgrepc conventions so log pipelines stay compatible.
 
 ## Contributing
 - Keep functions short and prefer deleting over adding.
@@ -42,4 +55,5 @@ typg find --cache-path ~/.local/share/typg/cache.db --variable -u "U+0041-U+005A
 - Plan: `PLAN.md`
 - Tasks: `TODO.md`
 - Spec: `docs/spec.md`
+- Architecture: `ARCHITECTURE.md`
 - Work log: `WORK.md`
