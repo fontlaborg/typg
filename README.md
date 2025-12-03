@@ -37,7 +37,16 @@ maturin develop --manifest-path typg-python/Cargo.toml --locked
 - Paths-only output for piping into typf/fontlift/testypf: `typg find --paths ~/Fonts` (also works with `cache list/find`).
 - Path overrides for system fonts: set `TYPOG_SYSTEM_FONT_DIRS="/opt/fonts:/tmp/fonts"`.
 - Build and query a cache (JSON file): `typg cache add --cache-path ~/.cache/typg/cache.json ~/Fonts` then `typg cache find --cache-path ~/.cache/typg/cache.json --scripts latn --json`; use `typg cache clean` to drop missing fonts and `typg cache list --json` to inspect entries. Cache path defaults to `~/.cache/typg/cache.json` (or `LOCALAPPDATA` on Windows) and respects `TYPOG_CACHE_PATH`.
-- Remote querying: `typg serve --bind 127.0.0.1:8765` exposes `/health` and `/search` (POST JSON with paths/filters, set `paths_only:true` to get a newline-ready list).
+- Cache info: `typg cache info` shows cache/index statistics (path, type, font count, size). Supports `--json` and `--index`.
+- Count-only queries: `typg cache find --scripts latn --count` outputs just the number of matching fonts (useful for scripting).
+- Quiet mode: `typg -q cache add ~/Fonts` suppresses informational stderr messages.
+- **High-performance index** (optional `hpindex` feature): For 100k+ font collections, use LMDB-backed index instead of JSON cache. Build with `cargo build --features hpindex`, then use `--index` flag:
+  - Ingest: `typg cache add --index ~/Fonts` (indexes to `~/.cache/typg/index/` by default).
+  - Query: `typg cache find --index --scripts latn --features smcp` (O(K) tag intersection via Roaring Bitmaps).
+  - List: `typg cache list --index` (lists all indexed fonts).
+  - Clean: `typg cache clean --index` (removes entries for missing files).
+  - Custom location: `typg cache add --index --index-path /path/to/index ~/Fonts`. Respects `TYPOG_INDEX_PATH` env var.
+- Remote querying: `typg serve --bind 127.0.0.1:8765` exposes `/health` and `/search` (POST JSON with paths/filters, set `paths_only:true` to get a newline-ready list). With hpindex feature, `/search` also accepts `use_index:true` and optional `index_path` to query the LMDB index instead of live scanning.
 
 ### Python (`typg` / `typgpy`)
 ```python
@@ -55,6 +64,15 @@ print("weighted matches:", len(weighted))
 
 family = find(paths=["~/Fonts"], family_class="sans")
 print("sans-serif matches:", len(family))
+
+# Indexed search (requires hpindex feature in build)
+try:
+    from typg import find_indexed, list_indexed, count_indexed
+    matches = find_indexed(index_path="~/.cache/typg/index", scripts=["latn"])
+    count = count_indexed(index_path="~/.cache/typg/index")
+    all_fonts = list_indexed(index_path="~/.cache/typg/index")
+except ImportError:
+    print("hpindex feature not enabled in build")
 ```
 
 CLI parity from Python: `typgpy find --paths ~/Fonts --scripts latn --features smcp --variable --paths_only True`.

@@ -22,6 +22,9 @@ use typg_core::query::{
 };
 use typg_core::search::{filter_cached, search, SearchOptions, TypgFontFaceMatch};
 
+#[cfg(feature = "hpindex")]
+use typg_core::index::FontIndex;
+
 /// CLI entrypoint for typg.
 #[derive(Debug, Parser)]
 #[command(
@@ -29,6 +32,10 @@ use typg_core::search::{filter_cached, search, SearchOptions, TypgFontFaceMatch}
     about = "Ultra-fast font search/discovery (made by FontLab https://www.fontlab.com/)"
 )]
 pub struct Cli {
+    /// Suppress informational messages (only output results)
+    #[arg(short = 'q', long = "quiet", global = true, action = ArgAction::SetTrue)]
+    quiet: bool,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -56,6 +63,8 @@ enum CacheCommand {
     Find(CacheFindArgs),
     /// Drop cache entries whose source files are missing
     Clean(CacheCleanArgs),
+    /// Show cache/index statistics
+    Info(CacheInfoArgs),
 }
 
 #[derive(Debug, Args)]
@@ -93,6 +102,14 @@ struct CacheAddArgs {
     /// Override cache location (defaults to ~/.cache/typg/cache.json)
     #[arg(long = "cache-path", value_hint = ValueHint::FilePath)]
     cache_path: Option<PathBuf>,
+
+    /// Use high-performance LMDB index instead of JSON cache (requires hpindex feature)
+    #[arg(long = "index", action = ArgAction::SetTrue)]
+    use_index: bool,
+
+    /// Override index directory (defaults to ~/.cache/typg/index/)
+    #[arg(long = "index-path", value_hint = ValueHint::DirPath)]
+    index_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Args, Clone)]
@@ -128,6 +145,14 @@ struct CacheListArgs {
     #[arg(long = "cache-path", value_hint = ValueHint::FilePath)]
     cache_path: Option<PathBuf>,
 
+    /// Use high-performance LMDB index instead of JSON cache (requires hpindex feature)
+    #[arg(long = "index", action = ArgAction::SetTrue)]
+    use_index: bool,
+
+    /// Override index directory (defaults to ~/.cache/typg/index/)
+    #[arg(long = "index-path", value_hint = ValueHint::DirPath)]
+    index_path: Option<PathBuf>,
+
     #[command(flatten)]
     output: OutputArgs,
 }
@@ -137,6 +162,14 @@ struct CacheFindArgs {
     /// Override cache location (defaults to ~/.cache/typg/cache.json)
     #[arg(long = "cache-path", value_hint = ValueHint::FilePath)]
     cache_path: Option<PathBuf>,
+
+    /// Use high-performance LMDB index instead of JSON cache (requires hpindex feature)
+    #[arg(long = "index", action = ArgAction::SetTrue)]
+    use_index: bool,
+
+    /// Override index directory (defaults to ~/.cache/typg/index/)
+    #[arg(long = "index-path", value_hint = ValueHint::DirPath)]
+    index_path: Option<PathBuf>,
 
     /// Require fonts to define these axis tags
     #[arg(short = 'a', long = "axes", value_delimiter = ',', value_hint = ValueHint::Other)]
@@ -182,6 +215,10 @@ struct CacheFindArgs {
     #[arg(long = "family-class", value_hint = ValueHint::Other)]
     family_class: Option<String>,
 
+    /// Only output the count of matching fonts (useful for scripting)
+    #[arg(long = "count", action = ArgAction::SetTrue, conflicts_with_all = ["json", "ndjson", "paths", "columns"])]
+    count_only: bool,
+
     #[command(flatten)]
     output: OutputArgs,
 }
@@ -191,6 +228,33 @@ struct CacheCleanArgs {
     /// Override cache location (defaults to ~/.cache/typg/cache.json)
     #[arg(long = "cache-path", value_hint = ValueHint::FilePath)]
     cache_path: Option<PathBuf>,
+
+    /// Use high-performance LMDB index instead of JSON cache (requires hpindex feature)
+    #[arg(long = "index", action = ArgAction::SetTrue)]
+    use_index: bool,
+
+    /// Override index directory (defaults to ~/.cache/typg/index/)
+    #[arg(long = "index-path", value_hint = ValueHint::DirPath)]
+    index_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct CacheInfoArgs {
+    /// Override cache location (defaults to ~/.cache/typg/cache.json)
+    #[arg(long = "cache-path", value_hint = ValueHint::FilePath)]
+    cache_path: Option<PathBuf>,
+
+    /// Use high-performance LMDB index instead of JSON cache (requires hpindex feature)
+    #[arg(long = "index", action = ArgAction::SetTrue)]
+    use_index: bool,
+
+    /// Override index directory (defaults to ~/.cache/typg/index/)
+    #[arg(long = "index-path", value_hint = ValueHint::DirPath)]
+    index_path: Option<PathBuf>,
+
+    /// Output as JSON
+    #[arg(long = "json", action = ArgAction::SetTrue)]
+    json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -282,6 +346,10 @@ struct FindArgs {
     #[arg(long = "columns", action = ArgAction::SetTrue)]
     columns: bool,
 
+    /// Only output the count of matching fonts (useful for scripting)
+    #[arg(long = "count", action = ArgAction::SetTrue, conflicts_with_all = ["json", "ndjson", "paths_only", "columns"])]
+    count_only: bool,
+
     /// Control colorized output (auto|always|never)
     #[arg(long = "color", default_value_t = ColorChoice::Auto, value_enum)]
     color: ColorChoice,
@@ -297,14 +365,16 @@ enum ColorChoice {
 /// Parse CLI args and execute the selected command.
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
+    let quiet = cli.quiet;
 
     match cli.command {
         Command::Find(args) => run_find(args),
         Command::Cache(cmd) => match cmd {
-            CacheCommand::Add(args) => run_cache_add(args),
+            CacheCommand::Add(args) => run_cache_add(args, quiet),
             CacheCommand::List(args) => run_cache_list(args),
             CacheCommand::Find(args) => run_cache_find(args),
-            CacheCommand::Clean(args) => run_cache_clean(args),
+            CacheCommand::Clean(args) => run_cache_clean(args, quiet),
+            CacheCommand::Info(args) => run_cache_info(args),
         },
         Command::Serve(args) => run_serve(args),
     }
@@ -329,6 +399,11 @@ fn run_find(args: FindArgs) -> Result<()> {
     };
 
     let matches = search(&paths, &query, &opts)?;
+
+    if args.count_only {
+        println!("{}", matches.len());
+        return Ok(());
+    }
 
     let output = OutputFormat::from_find(&args);
     write_matches(&matches, &output)
@@ -692,9 +767,21 @@ fn render_path(item: &TypgFontFaceMatch, color: bool) -> String {
     apply_color(&rendered, color, AnsiColor::Cyan)
 }
 
-fn run_cache_add(args: CacheAddArgs) -> Result<()> {
+fn run_cache_add(args: CacheAddArgs, quiet: bool) -> Result<()> {
     if matches!(args.jobs, Some(0)) {
         return Err(anyhow!("--jobs must be at least 1"));
+    }
+
+    #[cfg(feature = "hpindex")]
+    if args.use_index {
+        return run_cache_add_index(args, quiet);
+    }
+
+    #[cfg(not(feature = "hpindex"))]
+    if args.use_index {
+        return Err(anyhow!(
+            "--index requires the hpindex feature; rebuild with: cargo build --features hpindex"
+        ));
     }
 
     let stdin = io::stdin();
@@ -721,15 +808,29 @@ fn run_cache_add(args: CacheAddArgs) -> Result<()> {
     let merged = merge_entries(existing, additions);
     write_cache(&cache_path, &merged)?;
 
-    eprintln!(
-        "cached {} font faces at {}",
-        merged.len(),
-        cache_path.display()
-    );
+    if !quiet {
+        eprintln!(
+            "cached {} font faces at {}",
+            merged.len(),
+            cache_path.display()
+        );
+    }
     Ok(())
 }
 
 fn run_cache_list(args: CacheListArgs) -> Result<()> {
+    #[cfg(feature = "hpindex")]
+    if args.use_index {
+        return run_cache_list_index(args);
+    }
+
+    #[cfg(not(feature = "hpindex"))]
+    if args.use_index {
+        return Err(anyhow!(
+            "--index requires the hpindex feature; rebuild with: cargo build --features hpindex"
+        ));
+    }
+
     let cache_path = resolve_cache_path(&args.cache_path)?;
     let entries = load_cache(&cache_path)?;
     let output = OutputFormat::from_output(&args.output);
@@ -737,6 +838,18 @@ fn run_cache_list(args: CacheListArgs) -> Result<()> {
 }
 
 fn run_cache_find(args: CacheFindArgs) -> Result<()> {
+    #[cfg(feature = "hpindex")]
+    if args.use_index {
+        return run_cache_find_index(args);
+    }
+
+    #[cfg(not(feature = "hpindex"))]
+    if args.use_index {
+        return Err(anyhow!(
+            "--index requires the hpindex feature; rebuild with: cargo build --features hpindex"
+        ));
+    }
+
     let cache_path = resolve_cache_path(&args.cache_path)?;
     let entries = load_cache(&cache_path)?;
     let query = build_query_from_parts(
@@ -754,11 +867,29 @@ fn run_cache_find(args: CacheFindArgs) -> Result<()> {
     )?;
 
     let matches = filter_cached(&entries, &query);
+
+    if args.count_only {
+        println!("{}", matches.len());
+        return Ok(());
+    }
+
     let output = OutputFormat::from_output(&args.output);
     write_matches(&matches, &output)
 }
 
-fn run_cache_clean(args: CacheCleanArgs) -> Result<()> {
+fn run_cache_clean(args: CacheCleanArgs, quiet: bool) -> Result<()> {
+    #[cfg(feature = "hpindex")]
+    if args.use_index {
+        return run_cache_clean_index(args, quiet);
+    }
+
+    #[cfg(not(feature = "hpindex"))]
+    if args.use_index {
+        return Err(anyhow!(
+            "--index requires the hpindex feature; rebuild with: cargo build --features hpindex"
+        ));
+    }
+
     let cache_path = resolve_cache_path(&args.cache_path)?;
     let entries = load_cache(&cache_path)?;
     let before = entries.len();
@@ -766,12 +897,61 @@ fn run_cache_clean(args: CacheCleanArgs) -> Result<()> {
     let after = pruned.len();
 
     write_cache(&cache_path, &pruned)?;
-    eprintln!(
-        "removed {} missing entries ({} → {})",
-        before.saturating_sub(after),
-        before,
-        after
-    );
+    if !quiet {
+        eprintln!(
+            "removed {} missing entries ({} → {})",
+            before.saturating_sub(after),
+            before,
+            after
+        );
+    }
+    Ok(())
+}
+
+fn run_cache_info(args: CacheInfoArgs) -> Result<()> {
+    #[cfg(feature = "hpindex")]
+    if args.use_index {
+        return run_cache_info_index(args);
+    }
+
+    #[cfg(not(feature = "hpindex"))]
+    if args.use_index {
+        return Err(anyhow!(
+            "--index requires the hpindex feature; rebuild with: cargo build --features hpindex"
+        ));
+    }
+
+    let cache_path = resolve_cache_path(&args.cache_path)?;
+
+    if !cache_path.exists() {
+        if args.json {
+            println!(r#"{{"exists":false,"path":"{}"}}"#, cache_path.display());
+        } else {
+            println!("Cache does not exist at {}", cache_path.display());
+        }
+        return Ok(());
+    }
+
+    let entries = load_cache(&cache_path)?;
+    let file_meta = fs::metadata(&cache_path)?;
+    let size_bytes = file_meta.len();
+
+    if args.json {
+        let info = serde_json::json!({
+            "exists": true,
+            "path": cache_path.display().to_string(),
+            "type": "json",
+            "entries": entries.len(),
+            "size_bytes": size_bytes,
+        });
+        println!("{}", serde_json::to_string_pretty(&info)?);
+    } else {
+        println!("Cache: {}", cache_path.display());
+        println!("Type:  JSON");
+        println!("Fonts: {}", entries.len());
+        println!("Size:  {} bytes", size_bytes);
+    }
+
     Ok(())
 }
 
@@ -809,6 +989,45 @@ fn resolve_cache_path(custom: &Option<PathBuf>) -> Result<PathBuf> {
 
     Err(anyhow!(
         "--cache-path is required because no cache directory could be detected"
+    ))
+}
+
+/// Resolve the index directory path.
+#[cfg_attr(not(feature = "hpindex"), allow(dead_code))]
+fn resolve_index_path(custom: &Option<PathBuf>) -> Result<PathBuf> {
+    if let Some(path) = custom {
+        return Ok(path.clone());
+    }
+
+    if let Ok(env_override) = env::var("TYPOG_INDEX_PATH") {
+        return Ok(PathBuf::from(env_override));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(local_appdata) = env::var_os("LOCALAPPDATA") {
+            return Ok(PathBuf::from(local_appdata).join("typg").join("index"));
+        }
+        if let Some(home) = env::var_os("HOME") {
+            return Ok(PathBuf::from(home).join("AppData/Local/typg/index"));
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Some(xdg) = env::var_os("XDG_CACHE_HOME") {
+            return Ok(PathBuf::from(xdg).join("typg").join("index"));
+        }
+        if let Some(home) = env::var_os("HOME") {
+            return Ok(PathBuf::from(home)
+                .join(".cache")
+                .join("typg")
+                .join("index"));
+        }
+    }
+
+    Err(anyhow!(
+        "--index-path is required because no cache directory could be detected"
     ))
 }
 
@@ -881,6 +1100,190 @@ fn sort_entries(entries: &mut [TypgFontFaceMatch]) {
 
 fn cache_key(entry: &TypgFontFaceMatch) -> (PathBuf, Option<u32>) {
     (entry.source.path.clone(), entry.source.ttc_index)
+}
+
+// ============================================================================
+// High-performance index implementations (LMDB + Roaring Bitmaps)
+// ============================================================================
+
+#[cfg(feature = "hpindex")]
+fn run_cache_add_index(args: CacheAddArgs, quiet: bool) -> Result<()> {
+    use std::time::SystemTime;
+
+    let stdin = io::stdin();
+    let paths = gather_paths(
+        &args.paths,
+        args.stdin_paths,
+        args.system_fonts,
+        stdin.lock(),
+    )?;
+
+    let index_path = resolve_index_path(&args.index_path)?;
+    let index = FontIndex::open(&index_path)?;
+
+    // Use the existing search pipeline to discover and extract metadata.
+    let opts = SearchOptions {
+        follow_symlinks: args.follow_symlinks,
+        jobs: args.jobs,
+    };
+    let additions = search(&paths, &Query::new(), &opts)?;
+
+    // Write to index in a single transaction.
+    let mut writer = index.writer()?;
+    let mut added = 0usize;
+    let mut skipped = 0usize;
+
+    for entry in additions {
+        // Get file mtime for incremental update detection.
+        let mtime = entry
+            .source
+            .path
+            .metadata()
+            .and_then(|m| m.modified())
+            .unwrap_or(SystemTime::UNIX_EPOCH);
+
+        // Check if update is needed.
+        if !writer.needs_update(&entry.source.path, mtime)? {
+            skipped += 1;
+            continue;
+        }
+
+        writer.add_font(
+            &entry.source.path,
+            entry.source.ttc_index,
+            mtime,
+            entry.metadata.names.clone(),
+            &entry.metadata.axis_tags,
+            &entry.metadata.feature_tags,
+            &entry.metadata.script_tags,
+            &entry.metadata.table_tags,
+            &entry.metadata.codepoints,
+            entry.metadata.is_variable,
+            entry.metadata.weight_class,
+            entry.metadata.width_class,
+            entry.metadata.family_class,
+        )?;
+        added += 1;
+    }
+
+    writer.commit()?;
+
+    if !quiet {
+        let total = index.count()?;
+        eprintln!(
+            "indexed {} font faces at {} (added: {}, skipped: {})",
+            total,
+            index_path.display(),
+            added,
+            skipped
+        );
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "hpindex")]
+fn run_cache_list_index(args: CacheListArgs) -> Result<()> {
+    let index_path = resolve_index_path(&args.index_path)?;
+    let index = FontIndex::open(&index_path)?;
+    let reader = index.reader()?;
+    let entries = reader.list_all()?;
+    let output = OutputFormat::from_output(&args.output);
+    write_matches(&entries, &output)
+}
+
+#[cfg(feature = "hpindex")]
+fn run_cache_find_index(args: CacheFindArgs) -> Result<()> {
+    let index_path = resolve_index_path(&args.index_path)?;
+    let index = FontIndex::open(&index_path)?;
+
+    let query = build_query_from_parts(
+        &args.axes,
+        &args.features,
+        &args.scripts,
+        &args.tables,
+        &args.name_patterns,
+        &args.codepoints,
+        &args.text,
+        args.variable,
+        &args.weight,
+        &args.width,
+        &args.family_class,
+    )?;
+
+    let reader = index.reader()?;
+    let matches = reader.find(&query)?;
+
+    if args.count_only {
+        println!("{}", matches.len());
+        return Ok(());
+    }
+
+    let output = OutputFormat::from_output(&args.output);
+    write_matches(&matches, &output)
+}
+
+#[cfg(feature = "hpindex")]
+fn run_cache_clean_index(args: CacheCleanArgs, quiet: bool) -> Result<()> {
+    let index_path = resolve_index_path(&args.index_path)?;
+    let index = FontIndex::open(&index_path)?;
+
+    let mut writer = index.writer()?;
+    let (before, after) = writer.prune_missing()?;
+    writer.commit()?;
+
+    if !quiet {
+        eprintln!(
+            "removed {} missing entries ({} → {})",
+            before.saturating_sub(after),
+            before,
+            after
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "hpindex")]
+fn run_cache_info_index(args: CacheInfoArgs) -> Result<()> {
+    let index_path = resolve_index_path(&args.index_path)?;
+
+    if !index_path.exists() {
+        if args.json {
+            println!(r#"{{"exists":false,"path":"{}"}}"#, index_path.display());
+        } else {
+            println!("Index does not exist at {}", index_path.display());
+        }
+        return Ok(());
+    }
+
+    let index = FontIndex::open(&index_path)?;
+    let count = index.count()?;
+
+    // Calculate total directory size (non-recursive, LMDB is flat).
+    let size_bytes: u64 = fs::read_dir(&index_path)?
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.metadata().ok())
+        .filter(|m| m.is_file())
+        .map(|m| m.len())
+        .sum();
+
+    if args.json {
+        let info = serde_json::json!({
+            "exists": true,
+            "path": index_path.display().to_string(),
+            "type": "lmdb",
+            "entries": count,
+            "size_bytes": size_bytes,
+        });
+        println!("{}", serde_json::to_string_pretty(&info)?);
+    } else {
+        println!("Index: {}", index_path.display());
+        println!("Type:  LMDB");
+        println!("Fonts: {}", count);
+        println!("Size:  {} bytes", size_bytes);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

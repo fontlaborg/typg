@@ -15,6 +15,8 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 extension-module = ["pyo3/extension-module"]
+# Forward hpindex feature to typg-core for indexed search
+hpindex = ["typg-core/hpindex"]
 
 [dependencies]
 anyhow = "1.0"
@@ -25,3 +27,5 @@ typg-core = { version = "=1.0.1", path = "../typg-core" }
 [dev-dependencies]
 indoc = "2.0"
 pyo3 = { version = "0.26", features = ["abi3-py310"] }
+tempfile = "3.10"
+read-fonts = "0.36.0"

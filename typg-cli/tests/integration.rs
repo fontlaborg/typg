@@ -64,6 +64,30 @@ fn find_scripts_arab_outputs_expected_font() {
 }
 
 #[test]
+fn find_count_outputs_number() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let output = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["find", "--scripts", "latn", "--count"])
+        .arg(&fonts)
+        .output()
+        .expect("run typg");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let count: usize = stdout.trim().parse().expect("count should be a number");
+    assert!(count > 0, "should find at least one Latin font");
+}
+
+#[test]
 fn find_variable_json_respects_jobs_flag() {
     let fonts = match fonts_dir() {
         Some(dir) => dir,
@@ -255,5 +279,243 @@ fn cache_add_find_and_clean_cycle() {
         "clean should prune missing entries ({} -> {})",
         initial_len,
         after_len
+    );
+}
+
+#[test]
+fn cache_find_count_outputs_number() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let tmp = tempdir().expect("tempdir");
+    let cache_path = tmp.path().join("cache.json");
+
+    // First add some fonts.
+    let add = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "add", "--cache-path"])
+        .arg(&cache_path)
+        .arg(&fonts)
+        .output()
+        .expect("run cache add");
+    assert!(add.status.success());
+
+    // Find with --count flag.
+    let find = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "find", "--cache-path"])
+        .arg(&cache_path)
+        .args(["--scripts", "latn", "--count"])
+        .output()
+        .expect("run cache find --count");
+
+    assert!(
+        find.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&find.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&find.stdout);
+    let count: usize = stdout.trim().parse().expect("count should be a number");
+    assert!(count > 0, "should find at least one Latin font");
+}
+
+#[test]
+fn cache_info_shows_stats() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let tmp = tempdir().expect("tempdir");
+    let cache_path = tmp.path().join("cache.json");
+
+    // First add some fonts.
+    let add = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "add", "--cache-path"])
+        .arg(&cache_path)
+        .arg(&fonts)
+        .output()
+        .expect("run cache add");
+    assert!(add.status.success());
+
+    // Then check info.
+    let info = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "info", "--cache-path"])
+        .arg(&cache_path)
+        .arg("--json")
+        .output()
+        .expect("run cache info");
+
+    assert!(
+        info.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&info.stderr)
+    );
+
+    let parsed: Value = serde_json::from_slice(&info.stdout).expect("parse info json");
+    assert!(parsed["exists"].as_bool().unwrap_or(false));
+    assert!(parsed["entries"].as_u64().unwrap_or(0) > 0);
+    assert_eq!(parsed["type"].as_str(), Some("json"));
+}
+
+#[test]
+fn cache_add_quiet_suppresses_stderr() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let tmp = tempdir().expect("tempdir");
+    let cache_path = tmp.path().join("cache.json");
+
+    // Add with --quiet flag - should suppress stderr.
+    let add = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["--quiet", "cache", "add", "--cache-path"])
+        .arg(&cache_path)
+        .arg(&fonts)
+        .output()
+        .expect("run cache add --quiet");
+
+    assert!(
+        add.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&add.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&add.stderr);
+    assert!(
+        stderr.is_empty() || !stderr.contains("cached"),
+        "quiet mode should suppress 'cached X font faces' message"
+    );
+    assert!(cache_path.exists(), "cache file should still be created");
+}
+
+/// Test cache info with --index flag.
+#[test]
+#[cfg(feature = "hpindex")]
+fn cache_info_index_shows_lmdb_stats() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let tmp = tempdir().expect("tempdir");
+    let index_path = tmp.path().join("index");
+
+    // First add some fonts to index.
+    let add = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "add", "--index", "--index-path"])
+        .arg(&index_path)
+        .arg(&fonts)
+        .output()
+        .expect("run cache add --index");
+    assert!(add.status.success());
+
+    // Check info with --index flag.
+    let info = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "info", "--index", "--index-path"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()
+        .expect("run cache info --index");
+
+    assert!(
+        info.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&info.stderr)
+    );
+
+    let parsed: Value = serde_json::from_slice(&info.stdout).expect("parse info json");
+    assert!(parsed["exists"].as_bool().unwrap_or(false));
+    assert!(parsed["entries"].as_u64().unwrap_or(0) > 0);
+    assert_eq!(parsed["type"].as_str(), Some("lmdb"));
+}
+
+/// Test the high-performance index (hpindex) feature.
+/// Only runs when the hpindex feature is enabled.
+#[test]
+#[cfg(feature = "hpindex")]
+fn index_add_find_and_list_cycle() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let tmp = tempdir().expect("tempdir");
+    let index_path = tmp.path().join("index");
+
+    // Add fonts to the index.
+    let add = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "add", "--index", "--index-path"])
+        .arg(&index_path)
+        .arg(&fonts)
+        .output()
+        .expect("run cache add --index");
+    assert!(
+        add.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&add.stderr)
+    );
+    assert!(index_path.exists(), "index directory should be created");
+
+    // List fonts from the index.
+    let list = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "list", "--index", "--index-path"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()
+        .expect("run cache list --index");
+    assert!(
+        list.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&list.stderr)
+    );
+    let listed: Value = serde_json::from_slice(&list.stdout).expect("parse list json");
+    let arr = listed.as_array().expect("list returns array");
+    assert!(!arr.is_empty(), "index should contain entries");
+
+    // Find fonts with feature filter.
+    let find = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "find", "--index", "--index-path"])
+        .arg(&index_path)
+        .args(["--scripts", "latn", "--json"])
+        .output()
+        .expect("run cache find --index");
+    assert!(
+        find.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&find.stderr)
+    );
+    let found: Value = serde_json::from_slice(&find.stdout).expect("parse find json");
+    let arr = found.as_array().expect("find returns array");
+    assert!(
+        arr.iter().any(|entry| entry["source"]["path"]
+            .as_str()
+            .map(|p| p.ends_with("NotoSans-Regular.ttf"))
+            .unwrap_or(false)),
+        "indexed find should include NotoSans-Regular.ttf"
+    );
+
+    // Find variable fonts only.
+    let find_var = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "find", "--index", "--index-path"])
+        .arg(&index_path)
+        .args(["--variable", "--json"])
+        .output()
+        .expect("run cache find --index --variable");
+    assert!(
+        find_var.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&find_var.stderr)
+    );
+    let found_var: Value = serde_json::from_slice(&find_var.stdout).expect("parse find json");
+    let arr = found_var.as_array().expect("find returns array");
+    assert!(
+        arr.iter().any(|entry| entry["source"]["path"]
+            .as_str()
+            .map(|p| p.ends_with("Kalnia[wdth,wght].ttf"))
+            .unwrap_or(false)),
+        "indexed find --variable should include Kalnia"
     );
 }

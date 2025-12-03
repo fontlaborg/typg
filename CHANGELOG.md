@@ -29,3 +29,18 @@ made by FontLab https://www.fontlab.com/
 - Added OS/2 family-class filtering (major or `major.subclass`, with aliases like `sans`/`ornamental`/`script`) across core, CLI/cache, HTTP, and Python bindings; updated README/spec/examples and added unit/property coverage.
 - Ignored Python build artifacts/wheels/pycache and removed stray generated binaries from the working tree to keep commits clean.
 - Ingest name-table strings (family/typographic/full/PostScript) into metadata, deduplicate/sort tags/codepoints/names for deterministic cache/CLI output, and point integration fixtures at shared test fonts with name-filter regression coverage.
+- **Phase 11: High-Performance Embedded Index (hpindex feature)**:
+  - Added LMDB-backed index via `heed` crate for O(K) query performance on large font collections.
+  - Implemented Roaring Bitmaps for ultra-fast tag intersection queries.
+  - Added bincode serialization for font metadata storage.
+  - Implemented incremental updates via xxhash path hashing and mtime comparison.
+  - CLI: `--index` and `--index-path` flags on `cache add/find/list/clean` commands.
+  - Python bindings: `find_indexed()`, `list_indexed()`, `count_indexed()` functions.
+  - HTTP server: `/search` endpoint now supports `use_index` and `index_path` fields.
+  - Added criterion benchmark comparing live scan vs LMDB index (~5x speedup on test fonts).
+  - Build with `cargo build --features hpindex` to enable.
+- **CLI polish**:
+  - Added global `--quiet` / `-q` flag to suppress informational stderr messages for scripting use.
+  - Added `cache info` subcommand to show cache/index statistics (path, type, font count, size in bytes).
+  - Added `--count` flag to `cache find` to output only the number of matching fonts (useful for scripting).
+  - `cache info` supports `--json` output and `--index` flag for LMDB index stats.

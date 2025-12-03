@@ -17,6 +17,9 @@ use typg_core::search::{
 };
 use typg_core::tags::tag_to_string;
 
+#[cfg(feature = "hpindex")]
+use typg_core::index::FontIndex;
+
 #[derive(Clone, Debug, FromPyObject)]
 struct MetadataInput {
     path: PathBuf,
@@ -243,6 +246,83 @@ fn filter_cached_py(
     to_py_matches(py, matches)
 }
 
+/// Search an LMDB-backed index for matching fonts.
+/// Requires the hpindex feature to be enabled.
+#[cfg(feature = "hpindex")]
+#[pyfunction]
+#[pyo3(
+    signature = (
+        index_path,
+        axes=None,
+        features=None,
+        scripts=None,
+        tables=None,
+        names=None,
+        codepoints=None,
+        text=None,
+        weight=None,
+        width=None,
+        family_class=None,
+        variable=false
+    )
+)]
+#[allow(clippy::too_many_arguments)]
+fn find_indexed_py(
+    py: Python<'_>,
+    index_path: PathBuf,
+    axes: Option<Vec<String>>,
+    features: Option<Vec<String>>,
+    scripts: Option<Vec<String>>,
+    tables: Option<Vec<String>>,
+    names: Option<Vec<String>>,
+    codepoints: Option<Vec<String>>,
+    text: Option<String>,
+    weight: Option<String>,
+    width: Option<String>,
+    family_class: Option<String>,
+    variable: bool,
+) -> PyResult<Vec<Py<PyAny>>> {
+    let query = build_query(
+        axes,
+        features,
+        scripts,
+        tables,
+        names,
+        codepoints,
+        text,
+        weight,
+        width,
+        family_class,
+        variable,
+    )
+    .map_err(to_py_err)?;
+
+    let index = FontIndex::open(&index_path).map_err(to_py_err)?;
+    let reader = index.reader().map_err(to_py_err)?;
+    let matches = reader.find(&query).map_err(to_py_err)?;
+    to_py_matches(py, matches)
+}
+
+/// List all fonts in an LMDB-backed index.
+/// Requires the hpindex feature to be enabled.
+#[cfg(feature = "hpindex")]
+#[pyfunction]
+fn list_indexed_py(py: Python<'_>, index_path: PathBuf) -> PyResult<Vec<Py<PyAny>>> {
+    let index = FontIndex::open(&index_path).map_err(to_py_err)?;
+    let reader = index.reader().map_err(to_py_err)?;
+    let matches = reader.list_all().map_err(to_py_err)?;
+    to_py_matches(py, matches)
+}
+
+/// Get the count of fonts in an LMDB-backed index.
+/// Requires the hpindex feature to be enabled.
+#[cfg(feature = "hpindex")]
+#[pyfunction]
+fn count_indexed_py(index_path: PathBuf) -> PyResult<usize> {
+    let index = FontIndex::open(&index_path).map_err(to_py_err)?;
+    index.count().map_err(to_py_err)
+}
+
 fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch>> {
     entries
         .into_iter()
@@ -282,6 +362,7 @@ fn default_name(path: &Path) -> String {
         .unwrap_or_else(|| path.display().to_string())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_query(
     axes: Option<Vec<String>>,
     features: Option<Vec<String>>,
@@ -403,10 +484,7 @@ fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Ve
             meta_dict.set_item("is_variable", meta.is_variable)?;
             meta_dict.set_item("weight_class", meta.weight_class)?;
             meta_dict.set_item("width_class", meta.width_class)?;
-            meta_dict.set_item(
-                "family_class",
-                meta.family_class.map(|(class, subclass)| (class, subclass)),
-            )?;
+            meta_dict.set_item("family_class", meta.family_class)?;
 
             let outer = PyDict::new(py);
             outer.set_item("path", item.source.path.to_string_lossy().to_string())?;
@@ -428,6 +506,15 @@ fn typg_python(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(find_py, m)?)?;
     m.add_function(wrap_pyfunction!(find_paths_py, m)?)?;
     m.add_function(wrap_pyfunction!(filter_cached_py, m)?)?;
+
+    // Indexed search functions (require hpindex feature)
+    #[cfg(feature = "hpindex")]
+    {
+        m.add_function(wrap_pyfunction!(find_indexed_py, m)?)?;
+        m.add_function(wrap_pyfunction!(list_indexed_py, m)?)?;
+        m.add_function(wrap_pyfunction!(count_indexed_py, m)?)?;
+    }
+
     Ok(())
 }
 
@@ -577,5 +664,94 @@ mod tests {
 
             assert!(format!("{err}").contains("path"));
         });
+    }
+
+    #[cfg(feature = "hpindex")]
+    #[test]
+    fn indexed_search_returns_results() {
+        use read_fonts::types::Tag;
+        use std::time::SystemTime;
+        use tempfile::TempDir;
+        use typg_core::index::FontIndex;
+
+        // Keep TempDir alive for the entire test.
+        let dir = TempDir::new().unwrap();
+        let index_path = dir.path().to_path_buf();
+
+        // Create an index with a mock font entry.
+        {
+            let index = FontIndex::open(&index_path).unwrap();
+            let mut writer = index.writer().unwrap();
+            writer
+                .add_font(
+                    Path::new("/test/IndexedFont.ttf"),
+                    None,
+                    SystemTime::UNIX_EPOCH,
+                    vec!["Indexed Font".to_string()],
+                    &[Tag::new(b"wght")],
+                    &[Tag::new(b"smcp")],
+                    &[Tag::new(b"latn")],
+                    &[],
+                    &['a', 'b', 'c'],
+                    true,
+                    Some(400),
+                    Some(5),
+                    None,
+                )
+                .unwrap();
+            writer.commit().unwrap();
+        }
+
+        // Test the bindings (dir is still alive here).
+        Python::initialize();
+        Python::attach(|py| {
+            // Test count_indexed_py.
+            let count = count_indexed_py(index_path.clone()).unwrap();
+            assert_eq!(count, 1);
+
+            // Test list_indexed_py.
+            let all = list_indexed_py(py, index_path.clone()).unwrap();
+            assert_eq!(all.len(), 1);
+
+            // Test find_indexed_py with matching filter.
+            let matches = find_indexed_py(
+                py,
+                index_path.clone(),
+                Some(vec!["wght".into()]),
+                Some(vec!["smcp".into()]),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                true,
+            )
+            .unwrap();
+            assert_eq!(matches.len(), 1);
+
+            // Test find_indexed_py with non-matching filter.
+            let no_matches = find_indexed_py(
+                py,
+                index_path.clone(),
+                None,
+                Some(vec!["liga".into()]), // Not in the index
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                false,
+            )
+            .unwrap();
+            assert_eq!(no_matches.len(), 0);
+        });
+
+        // dir is dropped here, after all tests complete.
     }
 }

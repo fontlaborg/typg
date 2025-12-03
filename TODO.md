@@ -84,4 +84,65 @@ made by FontLab https://www.fontlab.com/
 - [x] Deduplicate and sort metadata lists (tags, codepoints, names) for deterministic cache/CLI output.
 - [x] Point integration fixtures at repo-level test fonts and add name-filter regression tests (core + CLI).
 
-**Testing Mandate:** Every new feature ships with unit tests + integration tests + benchmarks before marking TODO items complete.
+## Phase 11 – High-Performance Embedded Index
+
+### Core Infrastructure
+- [x] Add `heed`, `roaring`, `bytemuck`, `xxhash-rust`, `bincode`, `byteorder` dependencies to `typg-core/Cargo.toml` (simplified from original plan)
+- [x] Create `typg-core/src/index.rs` module with core types:
+  - [x] `FontID` (u64) for persistent font identification
+  - [x] `FontIndex` struct holding LMDB environment and database handles
+  - [x] `IndexedFontMeta` for serialized font metadata
+
+### Inverted Index Implementation
+- [x] Implement `DB_INVERTED_TAGS` database (Tag → RoaringBitmap<FontID>)
+- [x] Add methods for inserting tags during ingestion
+- [x] Add methods for bitmap intersection during queries
+
+### Unicode Coverage Filtering
+- [x] Implement Roaring Bitmap for cmap coverage (simplified from Cuckoo Filter)
+- [x] Store serialized Roaring Bitmap in `DB_METADATA`
+- [x] Add fast-path codepoint checking during queries
+
+### Metadata Storage (bincode)
+- [x] Define `IndexedFontMeta` with serde derives (simplified from rkyv)
+- [x] Implement bincode serialization/deserialization
+- [x] Store font paths, names, classification data
+
+### Path-to-ID Mapping
+- [x] Implement `DB_PATH_TO_ID` for incremental updates
+- [x] Store path hash → (FontID, mtime) mappings via xxhash
+- [x] Use mtime comparison to skip unchanged files
+
+### Ingestion Pipeline (`IndexWriter`)
+- [x] Implement atomic write transactions
+- [x] Support parallel font processing with rayon
+- [x] Merge new entries with existing index (update-in-place)
+
+### Query Execution (`IndexReader`)
+- [x] Implement read transactions (non-blocking)
+- [x] Query planner: tag bitmap intersection first
+- [x] Apply numeric filters (weight/width/family-class)
+- [x] Apply Roaring Bitmap cmap check for text queries
+- [x] Apply name regex on metadata strings
+
+### CLI Integration
+- [x] Add `--index` flag to `cache add` (opt-in index mode)
+- [x] Add `--index` flag to `cache find` (opt-in index mode)
+- [x] Add `--index` flag to `cache list` (opt-in index mode)
+- [x] Maintain JSON cache as default for backwards compatibility
+- [x] Add `--index-path` flag for custom index location
+
+### Testing
+- [x] Unit tests for bitmap operations
+- [x] Unit tests for cmap bitmap coverage
+- [x] Unit tests for incremental update detection
+- [x] Integration tests for full index round-trip (CLI)
+
+### Future Work
+- [x] Python bindings for indexed search (`find_indexed()`, `list_indexed()`, `count_indexed()`)
+- [x] Cache clean --index support with `prune_missing()` for LMDB
+- [x] Criterion benchmarks: live scan vs LMDB index query speed (benches/cache_vs_index.rs)
+- [x] HTTP server `/search` index support (`use_index` and `index_path` fields)
+- [ ] Benchmark: index build time on 10k/100k fonts (requires large font collection)
+
+**Implementation Note:** Simplified from original plan by using bincode instead of rkyv (simpler API, sufficient performance) and Roaring Bitmap for cmap instead of Cuckoo Filter (deterministic, no false positives).

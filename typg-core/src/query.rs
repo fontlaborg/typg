@@ -79,6 +79,58 @@ impl Query {
         self
     }
 
+    // Accessor methods for use by the high-performance index module.
+
+    /// Get the required axis tags.
+    pub fn axes(&self) -> &[Tag] {
+        &self.axes
+    }
+
+    /// Get the required feature tags.
+    pub fn features(&self) -> &[Tag] {
+        &self.features
+    }
+
+    /// Get the required script tags.
+    pub fn scripts(&self) -> &[Tag] {
+        &self.scripts
+    }
+
+    /// Get the required table tags.
+    pub fn tables(&self) -> &[Tag] {
+        &self.tables
+    }
+
+    /// Get the name patterns.
+    pub fn name_patterns(&self) -> &[Regex] {
+        &self.name_patterns
+    }
+
+    /// Get the required codepoints.
+    pub fn codepoints(&self) -> &[char] {
+        &self.codepoints
+    }
+
+    /// Check if variable fonts are required.
+    pub fn requires_variable(&self) -> bool {
+        self.variable_only
+    }
+
+    /// Get the weight range filter.
+    pub fn weight_range(&self) -> Option<&RangeInclusive<u16>> {
+        self.weight_range.as_ref()
+    }
+
+    /// Get the width range filter.
+    pub fn width_range(&self) -> Option<&RangeInclusive<u16>> {
+        self.width_range.as_ref()
+    }
+
+    /// Get the family class filter.
+    pub fn family_class(&self) -> Option<&FamilyClassFilter> {
+        self.family_class.as_ref()
+    }
+
     /// Check whether the provided font metadata satisfies the query filters.
     pub fn matches(&self, meta: &TypgFontFaceMeta) -> bool {
         if self.variable_only && !meta.is_variable {

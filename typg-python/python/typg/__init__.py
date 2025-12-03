@@ -9,9 +9,17 @@ from __future__ import annotations
 
 from importlib import metadata
 
-from typg_python import filter_cached, find
+from typg_python import filter_cached, find, find_paths
 
-__all__ = ["find", "filter_cached", "__version__"]
+__all__ = ["find", "find_paths", "filter_cached", "__version__"]
+
+# Optional indexed search functions (require hpindex feature in build)
+try:
+    from typg_python import count_indexed, find_indexed, list_indexed
+
+    __all__.extend(["find_indexed", "list_indexed", "count_indexed"])
+except ImportError:
+    pass  # hpindex feature not enabled
 
 try:
     __version__ = metadata.version(__name__)

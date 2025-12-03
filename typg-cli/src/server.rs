@@ -12,9 +12,14 @@ use tokio::net::TcpListener;
 use tokio::task;
 use typg_core::search::{search, SearchOptions, TypgFontFaceMatch};
 
-use crate::build_query_from_parts;
+#[cfg(feature = "hpindex")]
+use typg_core::index::FontIndex;
 
-#[derive(Clone, Debug, Deserialize)]
+use crate::build_query_from_parts;
+#[cfg(feature = "hpindex")]
+use crate::resolve_index_path;
+
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct SearchRequest {
     pub paths: Vec<PathBuf>,
@@ -32,28 +37,10 @@ pub struct SearchRequest {
     pub weight: Option<String>,
     pub width: Option<String>,
     pub family_class: Option<String>,
-}
-
-impl Default for SearchRequest {
-    fn default() -> Self {
-        Self {
-            paths: Vec::new(),
-            axes: Vec::new(),
-            features: Vec::new(),
-            scripts: Vec::new(),
-            tables: Vec::new(),
-            names: Vec::new(),
-            codepoints: Vec::new(),
-            text: None,
-            variable: false,
-            follow_symlinks: false,
-            jobs: None,
-            paths_only: false,
-            weight: None,
-            width: None,
-            family_class: None,
-        }
-    }
+    /// Use LMDB index instead of live scan (requires hpindex feature)
+    pub use_index: bool,
+    /// Custom index path (defaults to ~/.cache/typg/index or TYPOG_INDEX_PATH)
+    pub index_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -83,7 +70,13 @@ pub fn router() -> Router {
 async fn search_handler(
     Json(req): Json<SearchRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    if req.paths.is_empty() {
+    // Index mode doesn't need paths (searches the index)
+    #[cfg(feature = "hpindex")]
+    let needs_paths = !req.use_index;
+    #[cfg(not(feature = "hpindex"))]
+    let needs_paths = true;
+
+    if needs_paths && req.paths.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             "at least one search path is required".to_string(),
@@ -111,6 +104,48 @@ async fn search_handler(
         &req.family_class,
     )
     .map_err(to_bad_request)?;
+
+    // Dispatch to index search if requested
+    #[cfg(feature = "hpindex")]
+    if req.use_index {
+        let index_path = resolve_index_path(&req.index_path).map_err(to_bad_request)?;
+        let query_clone = query.clone();
+
+        let matches = task::spawn_blocking(move || {
+            let index = FontIndex::open(&index_path)?;
+            let reader = index.reader()?;
+            reader.find(&query_clone)
+        })
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("task join error: {e}"),
+            )
+        })?
+        .map_err(to_bad_request)?;
+
+        return if req.paths_only {
+            let paths: Vec<String> = matches.iter().map(|m| m.source.path_with_index()).collect();
+            Ok(Json(SearchResponse {
+                matches: None,
+                paths: Some(paths),
+            }))
+        } else {
+            Ok(Json(SearchResponse {
+                matches: Some(matches),
+                paths: None,
+            }))
+        };
+    }
+
+    #[cfg(not(feature = "hpindex"))]
+    if req.use_index {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "index search requires hpindex feature".to_string(),
+        ));
+    }
 
     let opts = SearchOptions {
         follow_symlinks: req.follow_symlinks,
@@ -269,5 +304,79 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         assert_eq!(body.as_ref(), b"ok");
+    }
+
+    #[cfg(feature = "hpindex")]
+    #[tokio::test]
+    async fn search_endpoint_with_index() {
+        use crate::resolve_index_path;
+        use std::fs;
+        use std::time::SystemTime;
+        use typg_core::discovery::{FontDiscovery, PathDiscovery};
+        use typg_core::index::FontIndex;
+        use typg_core::search::{search, SearchOptions};
+        use typg_core::query::Query;
+
+        let fonts = match fonts_dir() {
+            Some(dir) => dir,
+            None => return, // skip when fixtures are unavailable
+        };
+
+        // Build a temporary index
+        let index_dir = tempfile::TempDir::new().unwrap();
+        let index_path = index_dir.path().to_path_buf();
+
+        // Discover and add fonts to index
+        let discovery = PathDiscovery::new([fonts.clone()]);
+        let font_sources = discovery.discover().unwrap();
+
+        let all_matches = search(&[fonts.clone()], &Query::default(), &SearchOptions::default()).unwrap();
+
+        let index = FontIndex::open(&index_path).unwrap();
+        let mut writer = index.writer().unwrap();
+        for m in &all_matches {
+            let mtime = fs::metadata(&m.source.path)
+                .and_then(|meta| meta.modified())
+                .unwrap_or(SystemTime::UNIX_EPOCH);
+            let _ = writer.add_font(
+                &m.source.path,
+                m.source.ttc_index,
+                mtime,
+                m.metadata.names.clone(),
+                &m.metadata.axis_tags,
+                &m.metadata.feature_tags,
+                &m.metadata.script_tags,
+                &m.metadata.table_tags,
+                &m.metadata.codepoints.iter().copied().collect::<Vec<_>>(),
+                m.metadata.is_variable,
+                m.metadata.weight_class,
+                m.metadata.width_class,
+                m.metadata.family_class,
+            );
+        }
+        writer.commit().unwrap();
+        drop(index);
+
+        // Now query via HTTP
+        let app = router();
+        let payload = json!({
+            "use_index": true,
+            "index_path": index_path,
+            "scripts": ["latn"],
+            "paths_only": true
+        });
+
+        let request = Request::post("/search")
+            .header("content-type", "application/json")
+            .body(Body::from(payload.to_string()))
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let parsed: SearchResponse = serde_json::from_slice(&body).expect("parse response");
+        let paths = parsed.paths.expect("paths response present");
+        assert!(!paths.is_empty(), "expected at least one result from index search");
     }
 }

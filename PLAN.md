@@ -92,3 +92,59 @@ Build typg as an ultra-fast font search/discovery toolkit (Rust core + CLI + Pyt
 - [x] Pull Unicode name-table entries (family/typo/full/PostScript) into search metadata so name regex filters hit real names instead of filenames.
 - [x] Deduplicate and sort tags/codepoints/name lists for deterministic cache/CLI output.
 - [x] Fix integration fixtures to find repo-level test fonts and add name-filter regression tests across CLI/core.
+
+## Phase 11 — High-Performance Embedded Index (status)
+
+**Objective:** Replace JSON cache with specialized embedded database for O(K) query performance on massive font collections (>100k fonts).
+
+### Rationale
+The JSON cache imposes O(N) linear scan on every query, parsing overhead at startup, and unbounded memory usage. This phase introduces:
+- **LMDB via `heed`**: Memory-mapped, zero-copy reads, ACID transactions
+- **Roaring Bitmaps**: Ultra-fast set intersections for tag queries
+- **bincode serialization**: Fast, compact metadata storage (simplified from rkyv)
+- **Roaring Bitmap cmap**: Deterministic Unicode coverage filtering (simplified from Cuckoo Filter)
+
+### Expected Impact
+- **Query speed**: 100x-1000x speedup for selective queries on large collections
+- **Memory efficiency**: Usage independent of total font count
+- **Scalability**: Millisecond responsiveness on 100k+ font libraries
+
+### Architecture
+
+#### Database Layout (LMDB Environment)
+```
+DB_METADATA:      FontID (u64) -> bincode<IndexedFontMeta>
+DB_INVERTED_TAGS: Tag (u32)    -> RoaringBitmap<FontID>
+DB_PATH_TO_ID:    PathHash     -> (FontID, mtime)
+```
+
+#### Ingestion Pipeline (`cache add --index`)
+1. Use `heed` write transactions for atomic updates
+2. Check `DB_PATH_TO_ID` for incremental updates via xxhash + mtime
+3. Store Roaring Bitmap of cmap codepoints in metadata
+4. Serialize metadata with bincode into `DB_METADATA`
+5. Update Roaring Bitmaps in `DB_INVERTED_TAGS`
+6. Run `RoaringBitmap::run_optimize()` before commit
+
+#### Query Execution (`cache find --index`)
+1. Use `heed` read transactions (non-blocking)
+2. Retrieve bitmaps for query tags, perform intersection
+3. Iterate result FontIDs, deserialize metadata via bincode
+4. Apply numeric filters (weight/width/family-class) directly
+5. For text queries, check Roaring Bitmap cmap coverage
+6. Apply name regex on metadata strings
+
+### Implementation Tasks (Completed)
+- [x] Add `heed`, `roaring`, `bincode`, `bytemuck`, `xxhash-rust`, `byteorder` dependencies to `typg-core` (simplified from original plan)
+- [x] Create `typg-core/src/index.rs` with core types (`FontID`, `FontIndex`, `IndexedFontMeta`)
+- [x] Implement inverted index for tag → RoaringBitmap<FontID> mapping
+- [x] Implement Roaring Bitmap for cmap coverage (simplified from Cuckoo Filter)
+- [x] Implement `IndexWriter` for atomic ingestion pipeline with mtime-based incremental updates
+- [x] Implement `IndexReader` for optimized query execution with bitmap intersection
+- [x] Add `--index` and `--index-path` flags to CLI cache commands (`add`, `find`, `list`)
+- [x] Maintain JSON cache as default fallback for backwards compatibility
+- [x] Add unit tests for bitmap operations and integration tests for CLI
+
+### Future Work
+- [x] Add benchmarks comparing live scan vs Index performance (benches/cache_vs_index.rs)
+- [x] Update Python bindings for indexed search (`find_indexed()`, `list_indexed()`, `count_indexed()`)

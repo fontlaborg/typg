@@ -107,6 +107,7 @@ fn invalid_regex_returns_error() {
         ndjson: false,
         paths_only: false,
         columns: false,
+        count_only: false,
         color: ColorChoice::Auto,
     };
 
@@ -317,6 +318,7 @@ fn rejects_zero_jobs() {
         ndjson: false,
         paths_only: false,
         columns: false,
+        count_only: false,
         color: ColorChoice::Auto,
     };
 
