@@ -10,7 +10,7 @@ use regex::Regex;
 
 use typg_core::output::{write_json_pretty, write_ndjson};
 use typg_core::query::{parse_codepoint_list, parse_tag_list, Query};
-use typg_core::search::{search, FontMatch, SearchOptions};
+use typg_core::search::{search, SearchOptions, TypgFontFaceMatch};
 
 /// CLI entrypoint for typg.
 #[derive(Debug, Parser)]
@@ -308,7 +308,7 @@ fn system_font_roots() -> Result<Vec<PathBuf>> {
     Ok(candidates)
 }
 
-fn write_plain(matches: &[FontMatch], mut w: impl Write, color: bool) -> Result<()> {
+fn write_plain(matches: &[TypgFontFaceMatch], mut w: impl Write, color: bool) -> Result<()> {
     for item in matches {
         let rendered = render_path(item, color);
         writeln!(w, "{rendered}")?;
@@ -316,7 +316,7 @@ fn write_plain(matches: &[FontMatch], mut w: impl Write, color: bool) -> Result<
     Ok(())
 }
 
-fn write_columns(matches: &[FontMatch], mut w: impl Write, color: bool) -> Result<()> {
+fn write_columns(matches: &[TypgFontFaceMatch], mut w: impl Write, color: bool) -> Result<()> {
     let mut rows: Vec<(String, String, String)> = matches
         .iter()
         .map(|m| {
@@ -388,16 +388,16 @@ fn apply_color(text: &str, color: bool, code: AnsiColor) -> String {
     format!("\u{1b}[{}m{}\u{1b}[0m", code_str, text)
 }
 
-fn render_path(item: &FontMatch, color: bool) -> String {
+fn render_path(item: &TypgFontFaceMatch, color: bool) -> String {
     let rendered = path_with_index(item);
     apply_color(&rendered, color, AnsiColor::Cyan)
 }
 
-fn path_with_index(item: &FontMatch) -> String {
-    if let Some(idx) = item.metadata.ttc_index {
-        format!("{}#{}", item.path.display(), idx)
+fn path_with_index(item: &TypgFontFaceMatch) -> String {
+    if let Some(idx) = item.source.ttc_index {
+        format!("{}#{}", item.source.path.display(), idx)
     } else {
-        item.path.display().to_string()
+        item.source.path.display().to_string()
     }
 }
 

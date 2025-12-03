@@ -1,5 +1,5 @@
 use typg_core::output::{write_json_pretty, write_ndjson};
-use typg_core::search::{FontMatch, FontMetadata};
+use typg_core::search::{TypgFontFaceMatch, TypgFontFaceMeta, TypgFontSource};
 use typg_core::tags::tag4;
 
 #[test]
@@ -30,12 +30,14 @@ fn writes_pretty_json_array() {
     assert_eq!(parsed.as_array().unwrap().len(), 2);
 }
 
-fn sample_fonts() -> Vec<FontMatch> {
+fn sample_fonts() -> Vec<TypgFontFaceMatch> {
     vec![
-        FontMatch {
-            path: "fonts/A.ttf".into(),
-            metadata: FontMetadata {
+        TypgFontFaceMatch {
+            source: TypgFontSource {
                 path: "fonts/A.ttf".into(),
+                ttc_index: None,
+            },
+            metadata: TypgFontFaceMeta {
                 names: vec!["Alpha".into()],
                 axis_tags: vec![tag4("wght").unwrap()],
                 feature_tags: vec![],
@@ -43,13 +45,14 @@ fn sample_fonts() -> Vec<FontMatch> {
                 table_tags: vec![tag4("fvar").unwrap()],
                 codepoints: vec!['A', 'B'],
                 is_variable: true,
-                ttc_index: None,
             },
         },
-        FontMatch {
-            path: "fonts/B.otf".into(),
-            metadata: FontMetadata {
+        TypgFontFaceMatch {
+            source: TypgFontSource {
                 path: "fonts/B.otf".into(),
+                ttc_index: Some(1),
+            },
+            metadata: TypgFontFaceMeta {
                 names: vec!["Beta".into()],
                 axis_tags: vec![],
                 feature_tags: vec![],
@@ -57,7 +60,6 @@ fn sample_fonts() -> Vec<FontMatch> {
                 table_tags: vec![],
                 codepoints: vec!['A'],
                 is_variable: false,
-                ttc_index: Some(1),
             },
         },
     ]

@@ -6,7 +6,7 @@ use anyhow::{anyhow, Result};
 use read_fonts::types::Tag;
 use regex::Regex;
 
-use crate::search::FontMetadata;
+use crate::search::TypgFontFaceMeta;
 use crate::tags::tag4;
 
 #[derive(Debug, Clone, Default)]
@@ -61,7 +61,7 @@ impl Query {
     }
 
     /// Check whether the provided font metadata satisfies the query filters.
-    pub fn matches(&self, meta: &FontMetadata) -> bool {
+    pub fn matches(&self, meta: &TypgFontFaceMeta) -> bool {
         if self.variable_only && !meta.is_variable {
             return false;
         }

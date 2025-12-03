@@ -4,17 +4,17 @@ use std::io::Write;
 
 use anyhow::Result;
 
-use crate::search::FontMatch;
+use crate::search::TypgFontFaceMatch;
 
 /// Write results as prettified JSON array.
-pub fn write_json_pretty(results: &[FontMatch], mut w: impl Write) -> Result<()> {
+pub fn write_json_pretty(results: &[TypgFontFaceMatch], mut w: impl Write) -> Result<()> {
     let json = serde_json::to_string_pretty(results)?;
     w.write_all(json.as_bytes())?;
     Ok(())
 }
 
 /// Write results as newline-delimited JSON (NDJSON).
-pub fn write_ndjson(results: &[FontMatch], mut w: impl Write) -> Result<()> {
+pub fn write_ndjson(results: &[TypgFontFaceMatch], mut w: impl Write) -> Result<()> {
     for item in results {
         let line = serde_json::to_string(item)?;
         w.write_all(line.as_bytes())?;
@@ -26,14 +26,16 @@ pub fn write_ndjson(results: &[FontMatch], mut w: impl Write) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::search::FontMetadata;
+    use crate::search::{TypgFontFaceMatch, TypgFontFaceMeta, TypgFontSource};
     use std::path::PathBuf;
 
-    fn sample_match() -> FontMatch {
-        FontMatch {
-            path: PathBuf::from("/fonts/A.ttf"),
-            metadata: FontMetadata {
+    fn sample_match() -> TypgFontFaceMatch {
+        TypgFontFaceMatch {
+            source: TypgFontSource {
                 path: PathBuf::from("/fonts/A.ttf"),
+                ttc_index: None,
+            },
+            metadata: TypgFontFaceMeta {
                 names: vec!["A".to_string()],
                 axis_tags: Vec::new(),
                 feature_tags: Vec::new(),
@@ -41,7 +43,6 @@ mod tests {
                 table_tags: Vec::new(),
                 codepoints: Vec::new(),
                 is_variable: false,
-                ttc_index: None,
             },
         }
     }
@@ -57,7 +58,7 @@ mod tests {
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(lines.len(), 2);
 
-        let parsed: FontMatch = serde_json::from_str(lines[0]).expect("parse");
-        assert_eq!(parsed.path, PathBuf::from("/fonts/A.ttf"));
+        let parsed: TypgFontFaceMatch = serde_json::from_str(lines[0]).expect("parse");
+        assert_eq!(parsed.source.path, PathBuf::from("/fonts/A.ttf"));
     }
 }

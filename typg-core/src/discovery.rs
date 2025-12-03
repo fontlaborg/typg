@@ -7,13 +7,13 @@ use walkdir::WalkDir;
 
 /// Path to a candidate font file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FontLocation {
+pub struct TypgFontSourceRef {
     pub path: PathBuf,
 }
 
 /// Trait for enumerating fonts from some backing store (filesystem, cache index, etc.).
 pub trait FontDiscovery {
-    fn discover(&self) -> Result<Vec<FontLocation>>;
+    fn discover(&self) -> Result<Vec<TypgFontSourceRef>>;
 }
 
 /// Recursive filesystem walker that collects common font formats.
@@ -43,7 +43,7 @@ impl PathDiscovery {
 }
 
 impl FontDiscovery for PathDiscovery {
-    fn discover(&self) -> Result<Vec<FontLocation>> {
+    fn discover(&self) -> Result<Vec<TypgFontSourceRef>> {
         let mut found = Vec::new();
 
         for root in &self.roots {
@@ -54,7 +54,7 @@ impl FontDiscovery for PathDiscovery {
             for entry in WalkDir::new(root).follow_links(self.follow_symlinks) {
                 let entry = entry?;
                 if entry.file_type().is_file() && is_font(entry.path()) {
-                    found.push(FontLocation {
+                    found.push(TypgFontSourceRef {
                         path: entry.path().to_path_buf(),
                     });
                 }

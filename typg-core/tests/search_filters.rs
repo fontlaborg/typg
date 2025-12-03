@@ -1,7 +1,5 @@
-use std::path::PathBuf;
-
 use typg_core::query::Query;
-use typg_core::search::FontMetadata;
+use typg_core::search::TypgFontFaceMeta;
 use typg_core::tags::tag4;
 
 fn metadata_with(
@@ -12,9 +10,8 @@ fn metadata_with(
     tables: &[&str],
     codepoints: &[char],
     variable: bool,
-) -> FontMetadata {
-    FontMetadata {
-        path: PathBuf::from(name),
+) -> TypgFontFaceMeta {
+    TypgFontFaceMeta {
         names: vec![name.to_string()],
         axis_tags: axes.iter().map(|t| tag4(t).unwrap()).collect(),
         feature_tags: features.iter().map(|t| tag4(t).unwrap()).collect(),
@@ -22,7 +19,6 @@ fn metadata_with(
         table_tags: tables.iter().map(|t| tag4(t).unwrap()).collect(),
         codepoints: codepoints.to_vec(),
         is_variable: variable,
-        ttc_index: None,
     }
 }
 

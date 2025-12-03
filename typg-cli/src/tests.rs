@@ -2,20 +2,25 @@ use super::*;
 use clap::CommandFactory;
 use std::io::Cursor;
 use tempfile::tempdir;
-use typg_core::search::FontMetadata;
+use typg_core::search::{TypgFontFaceMatch, TypgFontFaceMeta, TypgFontSource};
 use typg_core::tags::tag4;
 
-fn metadata_with(name: &str, axis: Option<&str>, ttc: Option<u32>) -> FontMetadata {
-    FontMetadata {
-        path: PathBuf::from(format!("/fonts/{}.ttf", name.to_lowercase())),
-        names: vec![name.to_string()],
-        axis_tags: axis.into_iter().map(|t| tag4(t).expect("tag")).collect(),
-        feature_tags: Vec::new(),
-        script_tags: Vec::new(),
-        table_tags: Vec::new(),
-        codepoints: vec!['A'],
-        is_variable: axis.is_some(),
-        ttc_index: ttc,
+fn metadata_with(name: &str, axis: Option<&str>, ttc: Option<u32>) -> TypgFontFaceMatch {
+    let ext = if ttc.is_some() { "ttc" } else { "ttf" };
+    TypgFontFaceMatch {
+        source: TypgFontSource {
+            path: PathBuf::from(format!("/fonts/{}.{}", name, ext)),
+            ttc_index: ttc,
+        },
+        metadata: TypgFontFaceMeta {
+            names: vec![name.to_string()],
+            axis_tags: axis.into_iter().map(|t| tag4(t).expect("tag")).collect(),
+            feature_tags: Vec::new(),
+            script_tags: Vec::new(),
+            table_tags: Vec::new(),
+            codepoints: vec!['A'],
+            is_variable: axis.is_some(),
+        },
     }
 }
 
@@ -34,13 +39,13 @@ fn parses_find_args_into_query() {
     assert!(!args.ndjson);
 
     let mut matching = metadata_with("Mono", Some("wght"), None);
-    matching.feature_tags = vec![tag4("liga").unwrap()];
-    matching.script_tags = vec![tag4("latn").unwrap()];
-    matching.table_tags = vec![tag4("GPOS").unwrap()];
-    assert!(query.matches(&matching));
+    matching.metadata.feature_tags = vec![tag4("liga").unwrap()];
+    matching.metadata.script_tags = vec![tag4("latn").unwrap()];
+    matching.metadata.table_tags = vec![tag4("GPOS").unwrap()];
+    assert!(query.matches(&matching.metadata));
 
     let non_matching = metadata_with("Sans", None, None);
-    assert!(!query.matches(&non_matching));
+    assert!(!query.matches(&non_matching.metadata));
 }
 
 #[test]
@@ -76,16 +81,7 @@ fn invalid_regex_returns_error() {
 
 #[test]
 fn writes_plain_with_ttc_suffix() {
-    let matches = vec![
-        FontMatch {
-            path: PathBuf::from("/fonts/A.ttf"),
-            metadata: metadata_with("A", None, None),
-        },
-        FontMatch {
-            path: PathBuf::from("/fonts/B.ttc"),
-            metadata: metadata_with("B", None, Some(2)),
-        },
-    ];
+    let matches = vec![metadata_with("A", None, None), metadata_with("B", None, Some(2))];
 
     let mut buf = Cursor::new(Vec::new());
     write_plain(&matches, &mut buf, false).expect("write");
@@ -104,8 +100,8 @@ fn text_flag_merges_into_codepoints() {
     let query = build_query(&args).expect("build");
 
     let mut meta = metadata_with("AB", None, None);
-    meta.codepoints = vec!['A', 'B'];
-    assert!(query.matches(&meta));
+    meta.metadata.codepoints = vec!['A', 'B'];
+    assert!(query.matches(&meta.metadata));
 }
 
 #[test]
@@ -152,14 +148,8 @@ fn system_font_roots_uses_override_env() {
 #[test]
 fn columns_align_names() {
     let matches = vec![
-        FontMatch {
-            path: PathBuf::from("/fonts/A.ttf"),
-            metadata: metadata_with("Alpha", Some("wght"), None),
-        },
-        FontMatch {
-            path: PathBuf::from("/fonts/B.ttf"),
-            metadata: metadata_with("Beta", None, None),
-        },
+        metadata_with("Alpha", Some("wght"), None),
+        metadata_with("Beta", None, None),
     ];
 
     let mut buf = Cursor::new(Vec::new());
@@ -175,10 +165,7 @@ fn columns_align_names() {
 
 #[test]
 fn color_choice_is_applied() {
-    let matches = vec![FontMatch {
-        path: PathBuf::from("/fonts/A.ttf"),
-        metadata: metadata_with("Alpha", None, None),
-    }];
+    let matches = vec![metadata_with("Alpha", None, None)];
 
     let mut buf = Cursor::new(Vec::new());
     write_plain(&matches, &mut buf, true).expect("write");

@@ -14,8 +14,7 @@ use crate::query::Query;
 use crate::tags::{tag4, tag_to_string};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FontMetadata {
-    pub path: PathBuf,
+pub struct TypgFontFaceMeta {
     pub names: Vec<String>,
     #[serde(
         serialize_with = "serialize_tags",
@@ -39,13 +38,18 @@ pub struct FontMetadata {
     pub table_tags: Vec<Tag>,
     pub codepoints: Vec<char>,
     pub is_variable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypgFontSource {
+    pub path: PathBuf,
     pub ttc_index: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FontMatch {
-    pub path: PathBuf,
-    pub metadata: FontMetadata,
+pub struct TypgFontFaceMatch {
+    pub source: TypgFontSource,
+    pub metadata: TypgFontFaceMeta,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -54,18 +58,20 @@ pub struct SearchOptions {
 }
 
 /// Execute a query over the provided roots and return matching fonts.
-pub fn search(paths: &[PathBuf], query: &Query, opts: &SearchOptions) -> Result<Vec<FontMatch>> {
-    let discovery = PathDiscovery::new(paths.iter().cloned()).follow_symlinks(opts.follow_symlinks);
+pub fn search(
+    paths: &[PathBuf],
+    query: &Query,
+    opts: &SearchOptions,
+) -> Result<Vec<TypgFontFaceMatch>> {
+    let discovery =
+        PathDiscovery::new(paths.iter().cloned()).follow_symlinks(opts.follow_symlinks);
     let candidates = discovery.discover()?;
 
     let mut matches = Vec::new();
     for loc in candidates {
-        for meta in load_metadata(&loc.path)? {
-            if query.matches(&meta) {
-                matches.push(FontMatch {
-                    path: loc.path.clone(),
-                    metadata: meta,
-                });
+        for face in load_metadata(&loc.path)? {
+            if query.matches(&face.metadata) {
+                matches.push(face);
             }
         }
     }
@@ -75,22 +81,18 @@ pub fn search(paths: &[PathBuf], query: &Query, opts: &SearchOptions) -> Result<
 }
 
 /// Filter precomputed metadata entries (e.g., from a cache index) without touching the filesystem.
-pub fn filter_cached(entries: &[FontMetadata], query: &Query) -> Vec<FontMatch> {
-    let mut matches: Vec<FontMatch> = entries
+pub fn filter_cached(entries: &[TypgFontFaceMatch], query: &Query) -> Vec<TypgFontFaceMatch> {
+    let mut matches: Vec<TypgFontFaceMatch> = entries
         .iter()
-        .filter(|meta| query.matches(meta))
+        .filter(|entry| query.matches(&entry.metadata))
         .cloned()
-        .map(|metadata| FontMatch {
-            path: metadata.path.clone(),
-            metadata,
-        })
         .collect();
 
     sort_matches(&mut matches);
     matches
 }
 
-fn load_metadata(path: &Path) -> Result<Vec<FontMetadata>> {
+fn load_metadata(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
     let data = fs::read(path).with_context(|| format!("reading font {}", path.display()))?;
     let mut metas = Vec::new();
 
@@ -112,16 +114,20 @@ fn load_metadata(path: &Path) -> Result<Vec<FontMetadata>> {
         let fvar_tag = Tag::new(b"fvar");
         let is_variable = table_tags.contains(&fvar_tag);
 
-        metas.push(FontMetadata {
-            path: path.to_path_buf(),
-            names,
-            axis_tags,
-            feature_tags,
-            script_tags,
-            table_tags,
-            codepoints,
-            is_variable,
-            ttc_index,
+        metas.push(TypgFontFaceMatch {
+            source: TypgFontSource {
+                path: path.to_path_buf(),
+                ttc_index,
+            },
+            metadata: TypgFontFaceMeta {
+                names,
+                axis_tags,
+                feature_tags,
+                script_tags,
+                table_tags,
+                codepoints,
+                is_variable,
+            },
         });
     }
 
@@ -192,11 +198,12 @@ fn collect_names(_font: &FontRef, path: &Path) -> Vec<String> {
         .unwrap_or_else(|| path.display().to_string())]
 }
 
-fn sort_matches(matches: &mut [FontMatch]) {
+fn sort_matches(matches: &mut [TypgFontFaceMatch]) {
     matches.sort_by(|a, b| {
-        a.path
-            .cmp(&b.path)
-            .then_with(|| a.metadata.ttc_index.cmp(&b.metadata.ttc_index))
+        a.source
+            .path
+            .cmp(&b.source.path)
+            .then_with(|| a.source.ttc_index.cmp(&b.source.ttc_index))
     });
 }
 

@@ -8,7 +8,9 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use regex::Regex;
 use typg_core::query::{parse_codepoint_list, parse_tag_list, Query};
-use typg_core::search::{filter_cached, search, FontMatch, FontMetadata, SearchOptions};
+use typg_core::search::{
+    filter_cached, search, SearchOptions, TypgFontFaceMatch, TypgFontFaceMeta, TypgFontSource,
+};
 use typg_core::tags::tag_to_string;
 
 #[derive(Clone, Debug, FromPyObject)]
@@ -112,7 +114,7 @@ fn filter_cached_py(
     to_py_matches(py, matches)
 }
 
-fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<FontMetadata>> {
+fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch>> {
     entries
         .into_iter()
         .map(|entry| {
@@ -121,16 +123,20 @@ fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<FontMetadata>> {
                 names.push(default_name(&entry.path));
             }
 
-            Ok(FontMetadata {
-                path: entry.path,
-                names,
-                axis_tags: parse_tag_list(&entry.axis_tags)?,
-                feature_tags: parse_tag_list(&entry.feature_tags)?,
-                script_tags: parse_tag_list(&entry.script_tags)?,
-                table_tags: parse_tag_list(&entry.table_tags)?,
-                codepoints: parse_codepoints(&entry.codepoints)?,
-                is_variable: entry.is_variable,
-                ttc_index: entry.ttc_index,
+            Ok(TypgFontFaceMatch {
+                source: TypgFontSource {
+                    path: entry.path,
+                    ttc_index: entry.ttc_index,
+                },
+                metadata: TypgFontFaceMeta {
+                    names,
+                    axis_tags: parse_tag_list(&entry.axis_tags)?,
+                    feature_tags: parse_tag_list(&entry.feature_tags)?,
+                    script_tags: parse_tag_list(&entry.script_tags)?,
+                    table_tags: parse_tag_list(&entry.table_tags)?,
+                    codepoints: parse_codepoints(&entry.codepoints)?,
+                    is_variable: entry.is_variable,
+                },
             })
         })
         .collect()
@@ -194,7 +200,7 @@ fn dedup_chars(cps: &mut Vec<char>) {
     cps.dedup();
 }
 
-fn to_py_matches(py: Python<'_>, matches: Vec<FontMatch>) -> PyResult<Vec<Py<PyAny>>> {
+fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Vec<Py<PyAny>>> {
     matches
         .into_iter()
         .map(|item| {
@@ -238,10 +244,10 @@ fn to_py_matches(py: Python<'_>, matches: Vec<FontMatch>) -> PyResult<Vec<Py<PyA
                     .collect::<Vec<_>>(),
             )?;
             meta_dict.set_item("is_variable", meta.is_variable)?;
-            meta_dict.set_item("ttc_index", meta.ttc_index)?;
 
             let outer = PyDict::new(py);
-            outer.set_item("path", item.path.to_string_lossy().to_string())?;
+            outer.set_item("path", item.source.path.to_string_lossy().to_string())?;
+            outer.set_item("ttc_index", item.source.ttc_index)?;
             outer.set_item("metadata", meta_dict)?;
 
             Ok(outer.into_any().unbind())
