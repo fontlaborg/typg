@@ -1,12 +1,19 @@
 # typg
 made by FontLab https://www.fontlab.com/
 
-Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typg aims for flag-for-flag parity with `fontgrep` (live scan) and `fontgrepc` (cached), while reusing fontations/typf assets to stay lean.
+Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typg tracks fontgrep/fontgrepc semantics (live scan today; cache subcommands next) while reusing fontations + typf assets to stay lean.
+
+## Components
+- `typg-core`: search engine built on `read-fonts`/`skrifa` (fontations) with cached-filter hooks.
+- `typg-cli`: clap-based CLI that mirrors fontgrep’s `find` flags and output modes (plain/columns/JSON/NDJSON).
+- `typg-python`: PyO3 bindings plus a Fire/Typer CLI shim (`typgpy`) so Python users get the same surface.
 
 ## Status
-Rust core and CLI are functional for live scans; cache subcommands and fuller Python test coverage are in progress. See `docs/spec.md` for the parity matrix and `ARCHITECTURE.md` for data flow.
+- Live scans work: axes/features/scripts/tables/name/regex/codepoints/text filters plus STDIN/system font discovery.
+- Not yet: cache subcommands (`add/list/clean/find`), job controls, weight/class shorthands. These remain parity gaps to close.
+- Docs/spec cover planned parity (`docs/spec.md`); architecture notes live in `ARCHITECTURE.md`.
 
-## Install (from source today)
+## Install (source, today)
 ```bash
 # Rust CLI
 cargo install --path typg-cli
@@ -18,23 +25,42 @@ uv pip install maturin
 maturin develop --manifest-path typg-python/Cargo.toml --locked
 ```
 
-## Quick usage
-```bash
-# Live scan for small caps + Latin coverage
-typg find -f smcp -s latn ~/Fonts
+## Usage
+### CLI (`typg`)
+- Live scan a directory for small caps + Latin support: `typg find -f smcp -s latn ~/Fonts`
+- Accept STDIN paths: `fd .ttf ~/Fonts | typg find --stdin-paths --ndjson`
+- Include system font roots: `typg find --system-fonts --columns`
+- JSON output: add `--json` (array) or `--ndjson` (one match per line). Columns/plain auto-colorize unless `--color never`.
+- Path overrides for system fonts: set `TYPOG_SYSTEM_FONT_DIRS="/opt/fonts:/tmp/fonts"`.
 
-# Pipe paths on stdin
-fd .ttf ~/Fonts | typg find --stdin-paths --ndjson
-```
-
-### Python
+### Python (`typg` / `typgpy`)
 ```python
-from typg_python import find
+from typg import find
 
-matches = find(paths=["~/Fonts"], scripts=["latn"], features=["smcp"])
+matches = find(paths=["~/Fonts"], scripts=["latn"], features=["smcp"], variable=True)
 for m in matches:
     print(m["path"], m["names"][0])
 ```
+
+CLI parity from Python: `typgpy find --paths ~/Fonts --scripts latn --features smcp --variable`.
+
+### Rust library (`typg-core`)
+```rust
+use std::path::PathBuf;
+use typg_core::query::Query;
+use typg_core::search::{search, SearchOptions};
+use typg_core::tags::tag4;
+
+let paths = vec![PathBuf::from("~/Fonts")];
+let query = Query::new().with_features(vec![tag4("smcp").unwrap()]);
+let matches = search(&paths, &query, &SearchOptions::default())?;
+```
+
+## Migration (fontgrep/fontgrepc)
+- `typg find` mirrors `fontgrep find` flags already shipped (axes/features/scripts/tables/name/regex/codepoints/text, STDIN, system fonts, JSON/NDJSON, columns/plain).
+- Missing today: cache subcommands (`add/list/clean/find`) and `--jobs` parallelism—keep using fontgrepc for cached bulk searches until typg’s cache lands.
+- Weight/class/width shorthands are still planned; use explicit tag filters for now.
+- Output layout matches fontgrepc NDJSON; column widths are stable for downstream tooling.
 
 ## Build & release
 - macOS local builds: `./build.sh [release|debug]` emits the `typg` Rust CLI and the `typg` Python wheel/`typgpy` CLI (version comes from git tags via hatch-vcs).

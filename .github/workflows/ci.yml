@@ -1,4 +1,5 @@
 # made by FontLab https://www.fontlab.com/
+# CI layout mirrors typf/fontsimi: lint gate, cross-platform tests, plus Python bindings check.
 name: CI
 
 on:
@@ -9,11 +10,11 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  rust:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Rust (stable) with fmt/clippy
+      - name: Set up Rust (stable)
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
@@ -24,10 +25,29 @@ jobs:
         run: cargo fmt --all -- --check
       - name: clippy
         run: cargo clippy --workspace -- -D warnings
+
+  test:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust (stable)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}
       - name: tests
         run: cargo test --workspace
 
   python:
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

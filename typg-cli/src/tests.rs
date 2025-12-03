@@ -81,7 +81,10 @@ fn invalid_regex_returns_error() {
 
 #[test]
 fn writes_plain_with_ttc_suffix() {
-    let matches = vec![metadata_with("A", None, None), metadata_with("B", None, Some(2))];
+    let matches = vec![
+        metadata_with("A", None, None),
+        metadata_with("B", None, Some(2)),
+    ];
 
     let mut buf = Cursor::new(Vec::new());
     write_plain(&matches, &mut buf, false).expect("write");

@@ -4,6 +4,7 @@ made by FontLab https://www.fontlab.com/
 
 | Date (UTC) | Goal | Notes | Tests |
 | --- | --- | --- | --- |
+| 2025-12-03 | Docs + migration + CI matrix + bench | Expanded README with CLI/Python/Rust usage + migration guidance, detailed ARCHITECTURE reuse/limits, added CI lint gate + cross-OS test matrix referencing typf/fontsimi layout, recorded typg-cli live-scan microbench on typf/test-fonts (9 faces; 20 runs: mean 30.6 ms, min 6.5 ms, max 226 ms) and captured limits in docs/CHANGELOG. | cargo test --workspace |
 | 2025-12-01 | Release automation + naming cleanup | Added GitHub release workflow (wheels on semver tags, crates publish, GitHub release assets), set Rust CLI binary name to `typg`, fixed build/publish scripts for git-tag semver + token handling, documented build/publish flow | cargo fmt --all -- --check; cargo test --workspace |
 | 2025-12-01 | Publish flow: crates.io + PyPI naming/version | Added hatch-vcs git-tag version sync in publish.sh, renamed PyPI package to `typg`, synced Cargo versions to 1.0.1, added `typg` shim package | maturin build --release --features extension-module |
 | 2025-12-01 | PyO3 bindings + Fire CLI scaffold | Added `typg-python` crate with `find`/`filter_cached` bindings returning dicts, maturin `pyproject.toml`, and Fire-based `typgpy` wrapper; updated PLAN/TODO/README/CHANGELOG. | cargo test -p typg-python --tests; cargo test --workspace |

@@ -63,8 +63,7 @@ pub fn search(
     query: &Query,
     opts: &SearchOptions,
 ) -> Result<Vec<TypgFontFaceMatch>> {
-    let discovery =
-        PathDiscovery::new(paths.iter().cloned()).follow_symlinks(opts.follow_symlinks);
+    let discovery = PathDiscovery::new(paths.iter().cloned()).follow_symlinks(opts.follow_symlinks);
     let candidates = discovery.discover()?;
 
     let mut matches = Vec::new();

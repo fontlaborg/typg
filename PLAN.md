@@ -62,3 +62,9 @@ Build typg as an ultra-fast font search/discovery toolkit (Rust core + CLI + Pyt
 - [x] Added `typg-python` crate with PyO3 bindings that expose `find` and cached filtering, returning dict-friendly structures for Fire/CLI use.
 - [x] Created `pyproject.toml` (maturin) and Fire-based CLI wrapper (`typgpy`) under `python/typg_python`.
 - [~] Pytest coverage for the Python-facing API is still pending; Rust-side binding tests exist as a stopgap.
+
+## Phase 5 — Docs & CI (status)
+- [x] Updated README with overview/install/usage across Rust CLI, Python bindings, and library surfaces, plus migration guidance for fontgrep/fontgrepc users.
+- [x] Expanded ARCHITECTURE.md to spell out data flow, typf/fontations reuse points, and current limitations.
+- [x] Added CI workflow patterned after typf/fontsimi (lint gate, cross-OS Rust tests, Python binding build/tests).
+- [x] Logged microbenchmarks and current limitations in WORK.md/CHANGELOG.md for traceability.

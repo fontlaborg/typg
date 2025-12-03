@@ -51,12 +51,12 @@ made by FontLab https://www.fontlab.com/
 - [~] Add pytest suite hitting bindings + CLIs with golden files shared with Rust tests
 
 ## Phase 5 – Documentation & Verification
-- [ ] Update `README.md` with overview, install, usage examples (Rust, CLI, Python)
-- [ ] Create `ARCHITECTURE.md` describing data flow + reuse points from typf
-- [ ] Add CI workflow referencing typf + fontsimi pipelines
+- [x] Update `README.md` with overview, install, usage examples (Rust, CLI, Python)
+- [x] Create `ARCHITECTURE.md` describing data flow + reuse points from typf
+- [x] Add CI workflow referencing typf + fontsimi pipelines
 - [x] Add release workflow to publish crates (typg-core/typg-cli/typg-python) and PyPI wheels on semver tags
-- [ ] Document migration guidance for existing fontgrep/fontgrepc users
-- [ ] Record benchmarks + known limitations in `WORK.md` and `CHANGELOG.md`
+- [x] Document migration guidance for existing fontgrep/fontgrepc users
+- [x] Record benchmarks + known limitations in `WORK.md` and `CHANGELOG.md`
 
 ## Phase 6 – Stretch
 - [ ] Explore integration hooks so typg can directly feed fonts into typf/fontlift/testypf workflows
