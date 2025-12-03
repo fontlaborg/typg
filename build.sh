@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 TARGET_DIR="$PROJECT_ROOT/target"
 BUILD_TYPE="${1:-release}"  # Default to release build
-PYTHON_VERSION="${2:-3.12}" # Default Python version for bindings
+PYTHON_VERSION="${2:-3.13}" # Default Python version for bindings
 
 # Colors for output
 RED='\033[0;31m'
@@ -49,13 +49,13 @@ BUILD_TYPE:
     clean      Clean build artifacts
 
 PYTHON_VERSION:
-    3.10, 3.11, 3.12, or 3.13 (default: 3.12)
+    3.10, 3.11, 3.12, or 3.13 (default: 3.13)
     Used only for Python bindings compilation
 
 Examples:
-    $0                    # Release build with Python 3.12
-    $0 debug             # Debug build with Python 3.12
-    $0 release 3.13      # Release build with Python 3.13
+    $0                    # Release build with Python 3.13
+    $0 debug             # Debug build with Python 3.13
+    $0 release 3.12      # Release build with Python 3.12
     $0 clean             # Clean build artifacts
 
 EOF
@@ -361,7 +361,7 @@ main() {
 case "${1:-}" in
     dev-install)
         BUILD_TYPE="${2:-release}"
-        PYTHON_VERSION="${3:-3.12}"
+        PYTHON_VERSION="${3:-3.13}"
         check_dependencies
         install_python_dev
         exit 0
