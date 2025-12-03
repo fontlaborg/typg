@@ -5,14 +5,14 @@ made by FontLab https://www.fontlab.com/
 Map typg’s planned behavior against the two reference CLIs (fontgrep, fontgrepc) and pin down the initial crate layout plus core search use-cases.
 
 ## Comparison matrix
-| Capability | fontgrep (live scan) | fontgrepc (cached) | typg (planned) |
+| Capability | fontgrep (live scan) | fontgrepc (cached) | typg (current) |
 | --- | --- | --- | --- |
-| Execution model | Walks provided paths recursively and inspects fonts on the fly | SQLite cache with `add/list/clean/find` subcommands | Dual-path: live scan for ad‑hoc runs; optional cache module modeled after fontgrepc |
-| Core query filters | `--axes/-a`, `--features/-f`, `--scripts/-s`, `--tables/-T`, `--variable/-v`, `--name/-n` (regex), `--codepoints/-u`, `--text/-t`, `--jobs/-J` | Same filter set on `find` plus path filtering; `--jobs/-j` on `add`, `--force` | Match full filter set; add weight/class shorthands and Unicode range presets; keep regex for names |
+| Execution model | Walks provided paths recursively and inspects fonts on the fly | SQLite cache with `add/list/clean/find` subcommands | Dual-path: live scan for ad‑hoc runs; JSON cache subcommands (`add/list/find/clean`) modeled after fontgrepc |
+| Core query filters | `--axes/-a`, `--features/-f`, `--scripts/-s`, `--tables/-T`, `--variable/-v`, `--name/-n` (regex), `--codepoints/-u`, `--text/-t`, `--jobs/-J` | Same filter set on `find` plus path filtering; `--jobs/-j` on `add`, `--force` | Match full filter set; OS/2 weight/width/family-class shorthands shipped; keep regex for names |
 | Output modes | Plain text (paths), optional `--json/-j`; progressive printing | Plain text or `--json`; verbose summary when `--verbose` | Structured Rust types → text/JSON/NDJSON; configurable columns; `--quiet`/`--stats` toggles |
 | Parallelism | `-J/--jobs` for search | `-j/--jobs` for cache ingest; rayon pool | Thread-pool for ingest; async façade for Python bindings; sane defaults |
-| Cache control | None | `--cache-path`, `clean`, `list` | Cache optional: default path + `--cache-path`; background revalidate hook |
-| CLI surface | Single command | Subcommands: `find`, `add`, `list`, `clean` | `typg` mirrors subcommands when cache enabled; `typg find` matches fontgrep flags |
+| Cache control | None | `--cache-path`, `clean`, `list` | Cache optional: default path + `--cache-path`; background revalidate hook (future) |
+| CLI surface | Single command | Subcommands: `find`, `add`, `list`, `clean` | `typg find` matches fontgrep flags; `typg cache add/list/find/clean` manage the JSON cache |
 | Dependencies | skrifa/read-fonts, jwalk, clap | clap, rusqlite, rayon, jwalk | Prefer fontations (`read-fonts`/`skrifa`) for parsing; reuse typf-fontdb when it stays lean |
 
 ## Crate layout (initial)
@@ -26,7 +26,7 @@ Map typg’s planned behavior against the two reference CLIs (fontgrep, fontgrep
 - **OpenType features/scripts**: filter by GSUB/GPOS feature tags and script systems present.
 - **Unicode coverage**: accept codepoints, ranges, or text samples; return only fonts covering all requested characters.
 - **Table presence**: require tables like GPOS/GSUB/GDEF/BASE/OS/2.
-- **Classification filters**: weight/class/width shorthand mapped onto OS/2 values when present.
+- **Classification filters**: OS/2 weight/width/family-class shorthands mapped onto `usWeightClass`/`usWidthClass` and `sFamilyClass` (major or `major.subclass`, with name aliases like `sans`, `ornamental`, `script`).
 - **Performance knobs**: control job count, cache usage, and output verbosity without changing query semantics.
 
 ## Parity targets (Phase 1)

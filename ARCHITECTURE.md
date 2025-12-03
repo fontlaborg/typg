@@ -19,14 +19,13 @@ typg is a three-crate workspace that keeps parsing/rendering logic in the Rust c
 - System font roots align with `fontlift` defaults; environment overrides (`TYPOG_SYSTEM_FONT_DIRS`) allow platform-safe testing.
 - Test fixtures come from `typf/test-fonts` so CLI/python parity tests share goldens without bloating this repo.
 
-## Planned cache/parallel path
-- **Cache ingest/list/find/clean**: mirror fontgrepc UX, likely backed by SQLite with a thin adapter that can read typf-fontdb indexes when available.
-- **Job control**: rayon-backed parallel discovery and IO, exposed via `--jobs/-J` once cache hooks are present.
+## Cache/parallel path
+- **Cache ingest/list/find/clean**: mirror fontgrepc UX via a JSON cache file today; future work may swap to a SQLite/typf-fontdb-backed index.
+- **Job control**: rayon-backed parallel discovery and IO exposed via `--jobs/-J` for live scans and cache ingest.
 - **Python parity**: expose cache APIs through PyO3 so `typgpy` can drive both live scans and cached queries.
 
 ## Current limitations
-- No cache subcommands yet; only live scans are available.
-- No job count control; walks run single-threaded until cache/parallel work lands.
+- Cache uses a JSON file without automatic revalidation; SQLite/typf-fontdb integration is still planned.
 - Weight/class/width shorthands are not mapped; rely on explicit feature/script/table/tag filters.
 - Python bindings only exercise Rust-side tests today; full pytest coverage is pending.
 

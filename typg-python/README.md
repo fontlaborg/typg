@@ -15,12 +15,15 @@ uv run maturin develop --features extension-module
 ```python
 from typg import find, filter_cached
 
-results = find([\"/Library/Fonts\"], axes=[\"wght\"], variable=True, json=False)
+results = find([\"/Library/Fonts\"], axes=[\"wght\"], variable=True, jobs=4)
 print(len(results))
+
+weighted = find([\"/Library/Fonts\"], weight=\"300-500\", width=\"5\")
+print(\"weight/width matches\", len(weighted))
 ```
 
 CLI:
 
 ```bash
-typgpy find --paths /Library/Fonts --axes wght --variable
+typgpy find --paths /Library/Fonts --axes wght --weight 300-500 --variable --jobs 4
 ```

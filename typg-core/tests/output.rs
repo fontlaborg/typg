@@ -45,6 +45,9 @@ fn sample_fonts() -> Vec<TypgFontFaceMatch> {
                 table_tags: vec![tag4("fvar").unwrap()],
                 codepoints: vec!['A', 'B'],
                 is_variable: true,
+                weight_class: Some(400),
+                width_class: Some(5),
+                family_class: Some((8, 0)),
             },
         },
         TypgFontFaceMatch {
@@ -60,6 +63,9 @@ fn sample_fonts() -> Vec<TypgFontFaceMatch> {
                 table_tags: vec![],
                 codepoints: vec!['A'],
                 is_variable: false,
+                weight_class: Some(700),
+                width_class: None,
+                family_class: None,
             },
         },
     ]

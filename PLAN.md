@@ -51,20 +51,44 @@ Build typg as an ultra-fast font search/discovery toolkit (Rust core + CLI + Pyt
 - [x] Documented why typf-fontdb is not yet used for caching (no persistent index, in-memory only) and added a cached-filter path in `typg-core` to accept precomputed metadata without touching the filesystem.
 
 ## Phase 3 — CLI (status)
-- [~] `typg-cli` argument surface tracks fontgrep/fontgrepc for `find`; cache subcommands still pending.
+- [x] `typg-cli` argument surface tracks fontgrep/fontgrepc for `find`; cache subcommands now ship (JSON cache file with add/list/find/clean).
 - [x] Columnar/colorized output for `find` with JSON/NDJSON toggles, plus help coverage.
 
 ## Phase 3 — Rust CLI (status)
 - [x] `typg-cli find` now accepts STDIN paths and a `--system-fonts` toggle while retaining recursive walk defaults; added `--text` filter to cover fontgrep parity.
-- [~] Still to do: job controls and cache subcommands. Colorized/columnar output plus help/query snapshot coverage are in place.
+- [x] Cache subcommands (`add/list/find/clean`) now ingest/search JSON cache files; job controls land alongside cache ingest for parity.
 
 ## Phase 4 — Python bindings (status)
 - [x] Added `typg-python` crate with PyO3 bindings that expose `find` and cached filtering, returning dict-friendly structures for Fire/CLI use.
 - [x] Created `pyproject.toml` (maturin) and Fire-based CLI wrapper (`typgpy`) under `python/typg_python`.
-- [~] Pytest coverage for the Python-facing API is still pending; Rust-side binding tests exist as a stopgap.
+- [x] Added pytest coverage for typg-python (live scan + system font env override) using shared test fonts.
 
 ## Phase 5 — Docs & CI (status)
 - [x] Updated README with overview/install/usage across Rust CLI, Python bindings, and library surfaces, plus migration guidance for fontgrep/fontgrepc users.
 - [x] Expanded ARCHITECTURE.md to spell out data flow, typf/fontations reuse points, and current limitations.
 - [x] Added CI workflow patterned after typf/fontsimi (lint gate, cross-OS Rust tests, Python binding build/tests).
 - [x] Logged microbenchmarks and current limitations in WORK.md/CHANGELOG.md for traceability.
+
+## Phase 6 — Integrations & Service (status)
+- [x] Path-only output flags and Python `find_paths` helper added so typg results feed directly into typf/fontlift/testypf pipelines without post-processing.
+- [x] Optional HTTP server (`typg serve`) exposes `/health` and `/search` (JSON or paths-only) for remote querying once core parity is achieved.
+
+## Phase 7 — Parity polish (status)
+- [x] Add OS/2 classification filters (weight and width) across core, CLI/cache, Python bindings, and HTTP server with tests.
+- [x] Quiet clippy lint noise in typg-python by reducing argument lists (shared query params helper).
+- [x] Harden validation and health checks with targeted tests (e.g., reject jobs=0, assert `/health` endpoint).
+
+## Phase 8 — Validation polish (status)
+- [x] Cover HTTP `/search` error paths (missing paths, jobs=0) with Axum tests.
+- [x] Guard `--paths` output against ANSI when color is forced; add CLI test.
+- [x] Exercise Python path-only surfaces (`find_paths`, `paths_only` flag in CLI) with fixtures.
+
+## Phase 9 — Classification polish & hygiene (status)
+- [x] Add OS/2 family-class filter (major + subclass, named aliases) across core/CLI/cache/HTTP/Python with tests.
+- [x] Refresh docs/spec/README examples to show family-class usage.
+- [x] Ignore Python build artifacts and remove stray compiled outputs from the repo.
+
+## Phase 10 — Metadata polish (status)
+- [x] Pull Unicode name-table entries (family/typo/full/PostScript) into search metadata so name regex filters hit real names instead of filenames.
+- [x] Deduplicate and sort tags/codepoints/name lists for deterministic cache/CLI output.
+- [x] Fix integration fixtures to find repo-level test fonts and add name-filter regression tests across CLI/core.

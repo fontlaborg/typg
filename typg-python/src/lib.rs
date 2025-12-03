@@ -1,5 +1,6 @@
 //! PyO3 bindings for typg-core (made by FontLab https://www.fontlab.com/)
 
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
@@ -7,7 +8,10 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use regex::Regex;
-use typg_core::query::{parse_codepoint_list, parse_tag_list, Query};
+use typg_core::query::{
+    parse_codepoint_list, parse_family_class, parse_tag_list, parse_u16_range, FamilyClassFilter,
+    Query,
+};
 use typg_core::search::{
     filter_cached, search, SearchOptions, TypgFontFaceMatch, TypgFontFaceMeta, TypgFontSource,
 };
@@ -32,6 +36,12 @@ struct MetadataInput {
     is_variable: bool,
     #[pyo3(default)]
     ttc_index: Option<u32>,
+    #[pyo3(default)]
+    weight_class: Option<u16>,
+    #[pyo3(default)]
+    width_class: Option<u16>,
+    #[pyo3(default)]
+    family_class: Option<u16>,
 }
 
 #[pyfunction]
@@ -45,10 +55,15 @@ struct MetadataInput {
         names=None,
         codepoints=None,
         text=None,
+        weight=None,
+        width=None,
+        family_class=None,
         variable=false,
-        follow_symlinks=false
+        follow_symlinks=false,
+        jobs=None
     )
 )]
+#[allow(clippy::too_many_arguments)]
 fn find_py(
     py: Python<'_>,
     paths: Vec<PathBuf>,
@@ -59,8 +74,12 @@ fn find_py(
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
     text: Option<String>,
+    weight: Option<String>,
+    width: Option<String>,
+    family_class: Option<String>,
     variable: bool,
     follow_symlinks: bool,
+    jobs: Option<usize>,
 ) -> PyResult<Vec<Py<PyAny>>> {
     if paths.is_empty() {
         return Err(PyValueError::new_err(
@@ -68,14 +87,107 @@ fn find_py(
         ));
     }
 
+    if matches!(jobs, Some(0)) {
+        return Err(PyValueError::new_err(
+            "jobs must be at least 1 when provided",
+        ));
+    }
+
     let query = build_query(
-        axes, features, scripts, tables, names, codepoints, text, variable,
+        axes,
+        features,
+        scripts,
+        tables,
+        names,
+        codepoints,
+        text,
+        weight,
+        width,
+        family_class,
+        variable,
     )
     .map_err(to_py_err)?;
 
-    let opts = SearchOptions { follow_symlinks };
+    let opts = SearchOptions {
+        follow_symlinks,
+        jobs,
+    };
     let matches = search(&paths, &query, &opts).map_err(to_py_err)?;
     to_py_matches(py, matches)
+}
+
+#[pyfunction]
+#[pyo3(
+    signature = (
+        paths,
+        axes=None,
+        features=None,
+        scripts=None,
+        tables=None,
+        names=None,
+        codepoints=None,
+        text=None,
+        weight=None,
+        width=None,
+        family_class=None,
+        variable=false,
+        follow_symlinks=false,
+        jobs=None
+    )
+)]
+#[allow(clippy::too_many_arguments)]
+fn find_paths_py(
+    paths: Vec<PathBuf>,
+    axes: Option<Vec<String>>,
+    features: Option<Vec<String>>,
+    scripts: Option<Vec<String>>,
+    tables: Option<Vec<String>>,
+    names: Option<Vec<String>>,
+    codepoints: Option<Vec<String>>,
+    text: Option<String>,
+    weight: Option<String>,
+    width: Option<String>,
+    family_class: Option<String>,
+    variable: bool,
+    follow_symlinks: bool,
+    jobs: Option<usize>,
+) -> PyResult<Vec<String>> {
+    if paths.is_empty() {
+        return Err(PyValueError::new_err(
+            "at least one search path is required",
+        ));
+    }
+
+    if matches!(jobs, Some(0)) {
+        return Err(PyValueError::new_err(
+            "jobs must be at least 1 when provided",
+        ));
+    }
+
+    let query = build_query(
+        axes,
+        features,
+        scripts,
+        tables,
+        names,
+        codepoints,
+        text,
+        weight,
+        width,
+        family_class,
+        variable,
+    )
+    .map_err(to_py_err)?;
+
+    let opts = SearchOptions {
+        follow_symlinks,
+        jobs,
+    };
+    let matches = search(&paths, &query, &opts).map_err(to_py_err)?;
+    Ok(matches
+        .into_iter()
+        .map(|m| m.source.path_with_index())
+        .collect())
 }
 
 #[pyfunction]
@@ -89,9 +201,13 @@ fn find_py(
         names=None,
         codepoints=None,
         text=None,
+        weight=None,
+        width=None,
+        family_class=None,
         variable=false
     )
 )]
+#[allow(clippy::too_many_arguments)]
 fn filter_cached_py(
     py: Python<'_>,
     entries: Vec<MetadataInput>,
@@ -102,11 +218,24 @@ fn filter_cached_py(
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
     text: Option<String>,
+    weight: Option<String>,
+    width: Option<String>,
+    family_class: Option<String>,
     variable: bool,
 ) -> PyResult<Vec<Py<PyAny>>> {
     let metadata = convert_metadata(entries).map_err(to_py_err)?;
     let query = build_query(
-        axes, features, scripts, tables, names, codepoints, text, variable,
+        axes,
+        features,
+        scripts,
+        tables,
+        names,
+        codepoints,
+        text,
+        weight,
+        width,
+        family_class,
+        variable,
     )
     .map_err(to_py_err)?;
 
@@ -136,6 +265,11 @@ fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch
                     table_tags: parse_tag_list(&entry.table_tags)?,
                     codepoints: parse_codepoints(&entry.codepoints)?,
                     is_variable: entry.is_variable,
+                    weight_class: entry.weight_class,
+                    width_class: entry.width_class,
+                    family_class: entry
+                        .family_class
+                        .map(|raw| (((raw >> 8) & 0xFF) as u8, (raw & 0x00FF) as u8)),
                 },
             })
         })
@@ -156,6 +290,9 @@ fn build_query(
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
     text: Option<String>,
+    weight: Option<String>,
+    width: Option<String>,
+    family_class: Option<String>,
     variable: bool,
 ) -> Result<Query> {
     let axes = parse_tag_list(&axes.unwrap_or_default())?;
@@ -163,6 +300,9 @@ fn build_query(
     let scripts = parse_tag_list(&scripts.unwrap_or_default())?;
     let tables = parse_tag_list(&tables.unwrap_or_default())?;
     let name_patterns = compile_patterns(&names.unwrap_or_default())?;
+    let weight_range = parse_optional_range(weight)?;
+    let width_range = parse_optional_range(width)?;
+    let family_class = parse_optional_family_class(family_class)?;
 
     let mut cps = parse_codepoints(&codepoints.unwrap_or_default())?;
     if let Some(text) = text {
@@ -177,7 +317,10 @@ fn build_query(
         .with_tables(tables)
         .with_name_patterns(name_patterns)
         .with_codepoints(cps)
-        .require_variable(variable))
+        .require_variable(variable)
+        .with_weight_range(weight_range)
+        .with_width_range(width_range)
+        .with_family_class(family_class))
 }
 
 fn parse_codepoints(raw: &[String]) -> Result<Vec<char>> {
@@ -186,6 +329,20 @@ fn parse_codepoints(raw: &[String]) -> Result<Vec<char>> {
         cps.extend(parse_codepoint_list(chunk)?);
     }
     Ok(cps)
+}
+
+fn parse_optional_range(raw: Option<String>) -> Result<Option<RangeInclusive<u16>>> {
+    match raw {
+        Some(value) => Ok(Some(parse_u16_range(&value)?)),
+        None => Ok(None),
+    }
+}
+
+fn parse_optional_family_class(raw: Option<String>) -> Result<Option<FamilyClassFilter>> {
+    match raw {
+        Some(value) => Ok(Some(parse_family_class(&value)?)),
+        None => Ok(None),
+    }
 }
 
 fn compile_patterns(patterns: &[String]) -> Result<Vec<Regex>> {
@@ -244,6 +401,12 @@ fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Ve
                     .collect::<Vec<_>>(),
             )?;
             meta_dict.set_item("is_variable", meta.is_variable)?;
+            meta_dict.set_item("weight_class", meta.weight_class)?;
+            meta_dict.set_item("width_class", meta.width_class)?;
+            meta_dict.set_item(
+                "family_class",
+                meta.family_class.map(|(class, subclass)| (class, subclass)),
+            )?;
 
             let outer = PyDict::new(py);
             outer.set_item("path", item.source.path.to_string_lossy().to_string())?;
@@ -263,6 +426,7 @@ fn to_py_err(err: anyhow::Error) -> PyErr {
 #[pyo3(name = "_typg_python")]
 fn typg_python(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(find_py, m)?)?;
+    m.add_function(wrap_pyfunction!(find_paths_py, m)?)?;
     m.add_function(wrap_pyfunction!(filter_cached_py, m)?)?;
     Ok(())
 }
@@ -282,6 +446,9 @@ mod tests {
             codepoints: vec!["A".into()],
             is_variable: variable,
             ttc_index: None,
+            weight_class: None,
+            width_class: None,
+            family_class: None,
         }
     }
 
@@ -302,6 +469,9 @@ mod tests {
                 None,
                 None,
                 Some(vec!["Pro".into()]),
+                None,
+                None,
+                None,
                 None,
                 None,
                 true,
@@ -338,6 +508,9 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
+                None,
                 false,
             )
             .unwrap_err();
@@ -364,8 +537,12 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
+                None,
                 false,
                 false,
+                None,
             )
             .unwrap_err();
 
@@ -373,6 +550,32 @@ mod tests {
                 format!("{err}").contains("path"),
                 "should mention missing paths"
             );
+        });
+    }
+
+    #[test]
+    fn find_paths_requires_paths() {
+        Python::initialize();
+        Python::attach(|_| {
+            let err = find_paths_py(
+                Vec::new(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                false,
+                false,
+                None,
+            )
+            .unwrap_err();
+
+            assert!(format!("{err}").contains("path"));
         });
     }
 }

@@ -11,7 +11,7 @@ from typing import Iterable, List, Sequence
 
 import fire
 
-from . import find
+from . import find, find_paths
 
 
 def _dedup_paths(paths: Iterable[Path]) -> List[Path]:
@@ -96,16 +96,39 @@ def find_cli(
     names: Sequence[str] | None = None,
     codepoints: Sequence[str] | None = None,
     text: str | None = None,
+    weight: str | None = None,
+    width: str | None = None,
+    family_class: str | None = None,
     variable: bool = False,
     follow_symlinks: bool = False,
+    jobs: int | None = None,
     stdin_paths: bool = False,
     system_fonts: bool = False,
+    paths_only: bool = False,
 ):
     """
     Run typg search from Python bindings.
     """
 
     gathered = _gather_paths(paths, stdin_paths, system_fonts)
+    if paths_only:
+        return find_paths(
+            gathered,
+            axes=list(axes) if axes else None,
+            features=list(features) if features else None,
+            scripts=list(scripts) if scripts else None,
+            tables=list(tables) if tables else None,
+            names=list(names) if names else None,
+            codepoints=list(codepoints) if codepoints else None,
+            text=text,
+            weight=weight,
+            width=width,
+            family_class=family_class,
+            variable=variable,
+            follow_symlinks=follow_symlinks,
+            jobs=jobs,
+        )
+
     return find(
         gathered,
         axes=list(axes) if axes else None,
@@ -115,8 +138,12 @@ def find_cli(
         names=list(names) if names else None,
         codepoints=list(codepoints) if codepoints else None,
         text=text,
+        weight=weight,
+        width=width,
+        family_class=family_class,
         variable=variable,
         follow_symlinks=follow_symlinks,
+        jobs=jobs,
     )
 
 

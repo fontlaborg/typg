@@ -1,7 +1,7 @@
 # typg
 made by FontLab https://www.fontlab.com/
 
-Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typg tracks fontgrep/fontgrepc semantics (live scan today; cache subcommands next) while reusing fontations + typf assets to stay lean.
+Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typg tracks fontgrep/fontgrepc semantics (live scan + JSON cache subcommands) while reusing fontations + typf assets to stay lean.
 
 ## Components
 - `typg-core`: search engine built on `read-fonts`/`skrifa` (fontations) with cached-filter hooks.
@@ -10,7 +10,8 @@ Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typ
 
 ## Status
 - Live scans work: axes/features/scripts/tables/name/regex/codepoints/text filters plus STDIN/system font discovery.
-- Not yet: cache subcommands (`add/list/clean/find`), job controls, weight/class shorthands. These remain parity gaps to close.
+- Cache path now ships: `typg cache add/list/find/clean` writes a JSON cache file; `--jobs` controls ingest/search threads.
+- OS/2 weight, width, and family-class filters now ship across Rust/Python/HTTP surfaces.
 - Docs/spec cover planned parity (`docs/spec.md`); architecture notes live in `ARCHITECTURE.md`.
 
 ## Install (source, today)
@@ -30,19 +31,33 @@ maturin develop --manifest-path typg-python/Cargo.toml --locked
 - Live scan a directory for small caps + Latin support: `typg find -f smcp -s latn ~/Fonts`
 - Accept STDIN paths: `fd .ttf ~/Fonts | typg find --stdin-paths --ndjson`
 - Include system font roots: `typg find --system-fonts --columns`
+- Control worker count when scanning: `typg find --jobs 4 --variable ~/Fonts` (defaults to CPU count)
+- Filter OS/2 classifications: `typg find --weight 300-500 --width 5 --family-class sans ~/Fonts`
 - JSON output: add `--json` (array) or `--ndjson` (one match per line). Columns/plain auto-colorize unless `--color never`.
+- Paths-only output for piping into typf/fontlift/testypf: `typg find --paths ~/Fonts` (also works with `cache list/find`).
 - Path overrides for system fonts: set `TYPOG_SYSTEM_FONT_DIRS="/opt/fonts:/tmp/fonts"`.
+- Build and query a cache (JSON file): `typg cache add --cache-path ~/.cache/typg/cache.json ~/Fonts` then `typg cache find --cache-path ~/.cache/typg/cache.json --scripts latn --json`; use `typg cache clean` to drop missing fonts and `typg cache list --json` to inspect entries. Cache path defaults to `~/.cache/typg/cache.json` (or `LOCALAPPDATA` on Windows) and respects `TYPOG_CACHE_PATH`.
+- Remote querying: `typg serve --bind 127.0.0.1:8765` exposes `/health` and `/search` (POST JSON with paths/filters, set `paths_only:true` to get a newline-ready list).
 
 ### Python (`typg` / `typgpy`)
 ```python
-from typg import find
+from typg import find, find_paths
 
 matches = find(paths=["~/Fonts"], scripts=["latn"], features=["smcp"], variable=True)
 for m in matches:
     print(m["path"], m["names"][0])
+
+paths_only = find_paths(paths=["~/Fonts"], scripts=["latn"])
+print("first path:", paths_only[0])
+
+weighted = find(paths=["~/Fonts"], weight="400-700", width="5")
+print("weighted matches:", len(weighted))
+
+family = find(paths=["~/Fonts"], family_class="sans")
+print("sans-serif matches:", len(family))
 ```
 
-CLI parity from Python: `typgpy find --paths ~/Fonts --scripts latn --features smcp --variable`.
+CLI parity from Python: `typgpy find --paths ~/Fonts --scripts latn --features smcp --variable --paths_only True`.
 
 ### Rust library (`typg-core`)
 ```rust
@@ -58,7 +73,7 @@ let matches = search(&paths, &query, &SearchOptions::default())?;
 
 ## Migration (fontgrep/fontgrepc)
 - `typg find` mirrors `fontgrep find` flags already shipped (axes/features/scripts/tables/name/regex/codepoints/text, STDIN, system fonts, JSON/NDJSON, columns/plain).
-- Missing today: cache subcommands (`add/list/clean/find`) and `--jobs` parallelism—keep using fontgrepc for cached bulk searches until typg’s cache lands.
+- Cache subcommands mirror fontgrepc (`add/list/find/clean`) using a JSON cache file; keep using fontgrepc if you need SQLite today.
 - Weight/class/width shorthands are still planned; use explicit tag filters for now.
 - Output layout matches fontgrepc NDJSON; column widths are stable for downstream tooling.
 
@@ -69,7 +84,7 @@ let matches = search(&paths, &query, &SearchOptions::default())?;
 
 ## Migration notes (fontgrep/fontgrepc → typg)
 - Flags mirror fontgrep; see `docs/spec.md` for any divergence.
-- Cache subcommands are being built; until then typg only performs live scans.
+- Cache subcommands are available: `typg cache add/list/find/clean` manage a JSON cache file; live scans remain available via `typg find`.
 - NDJSON output matches fontgrepc conventions so log pipelines stay compatible.
 
 ## Contributing

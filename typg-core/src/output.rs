@@ -43,6 +43,9 @@ mod tests {
                 table_tags: Vec::new(),
                 codepoints: Vec::new(),
                 is_variable: false,
+                weight_class: None,
+                width_class: None,
+                family_class: None,
             },
         }
     }

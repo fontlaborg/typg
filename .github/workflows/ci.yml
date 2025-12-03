@@ -62,7 +62,21 @@ jobs:
       - name: Install uv
         run: |
           python -m pip install -U pip uv
+      - name: Create venv + dev deps
+        shell: bash
+        run: |
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install maturin pytest
       - name: Build PyO3 extension (abi3)
-        run: uv tool run --from maturin maturin develop --manifest-path typg-python/Cargo.toml --locked
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          maturin develop --manifest-path typg-python/Cargo.toml --locked
+      - name: Python tests (pytest)
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          pytest typg-python/tests
       - name: Rust tests for bindings
         run: cargo test -p typg-python --tests

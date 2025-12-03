@@ -18,6 +18,9 @@ fn metadata_with(name: &str, axis: Option<&str>, ttc_index: Option<u32>) -> Typg
             table_tags: Vec::new(),
             codepoints: vec!['A'],
             is_variable: axis.is_some(),
+            weight_class: None,
+            width_class: None,
+            family_class: None,
         },
     }
 }

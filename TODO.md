@@ -38,17 +38,18 @@ made by FontLab https://www.fontlab.com/
 - [x] Write criterion benchmarks comparing against original fontgrep; target parity before refactors
 
 ## Phase 3 – Rust CLI
-- [~] Build `typg-cli` crate with argument parser (clap/lexopt) mirroring fontgrep/fontgrepc options
+- [x] Build `typg-cli` crate with argument parser (clap/lexopt) mirroring fontgrep/fontgrepc options for `find`, including `--jobs`
 - [x] `typg-cli` find subcommand scaffolded (axes/features/scripts/tables/name/codepoints/variable flags + json/ndjson/plain output)
 - [x] Ensure CLI supports recursive directory walks, system font discovery, and STDIN/STDOUT piping
 - [x] Implement colorized/columnar output plus `--json` / `--ndjson` toggles
-- [~] Add snapshot tests for CLI help (done) plus representative queries (pending font fixtures from `external/fontgrep`)
+- [x] Add snapshot tests for CLI help plus representative queries using `typf/test-fonts`
+- [x] Add cache subcommands (`add/list/clean/find`) mirroring fontgrepc once cache module lands (JSON cache file, dedup + clean)
 
 ## Phase 4 – Python Bindings & Fire CLI
 - [x] Design minimal PyO3 bindings that wrap `typg-core` search API (async-friendly if needed)
 - [x] Provide `fire`-based CLI mirroring Rust CLI semantics (optionally Typer if richer UX needed)
 - [x] Publish packaging metadata (pyproject via `maturin`) and document install flow in README
-- [~] Add pytest suite hitting bindings + CLIs with golden files shared with Rust tests
+- [x] Add pytest suite hitting bindings + CLIs with golden files shared with Rust tests
 
 ## Phase 5 – Documentation & Verification
 - [x] Update `README.md` with overview, install, usage examples (Rust, CLI, Python)
@@ -59,7 +60,28 @@ made by FontLab https://www.fontlab.com/
 - [x] Record benchmarks + known limitations in `WORK.md` and `CHANGELOG.md`
 
 ## Phase 6 – Stretch
-- [ ] Explore integration hooks so typg can directly feed fonts into typf/fontlift/testypf workflows
-- [ ] Add optional gRPC/HTTP server mode for remote querying (only after core parity achieved)
+- [x] Explore integration hooks so typg can directly feed fonts into typf/fontlift/testypf workflows
+- [x] Add optional gRPC/HTTP server mode for remote querying (only after core parity achieved)
+
+## Phase 7 – Parity polish
+- [x] Add OS/2 classification filters (weight + width) end-to-end (core, CLI/cache, Python, HTTP) with tests.
+- [x] Quiet clippy lint noise in typg-python by consolidating query params to avoid `too_many_arguments`.
+- [x] Harden validation and health checks with explicit tests (jobs=0 rejection, `/health` endpoint).
+
+## Phase 8 – Validation polish
+
+- [x] Add Axum tests for HTTP `/search` errors (no paths, jobs=0) to lock validation.
+- [x] Ensure `--paths` output stays ANSI-free even when `--color always`; cover with CLI test.
+- [x] Add Python tests for `find_paths` and CLI `paths_only` to guarantee path-only surfaces.
+
+## Phase 9 – Classification & Hygiene
+- [x] Add OS/2 family-class filtering (major + subclass aliases) across core/CLI/cache/HTTP/Python with tests.
+- [x] Document family-class usage in README/spec/examples.
+- [x] Ignore Python build artifacts and drop stray compiled outputs from the repo.
+
+## Phase 10 – Metadata polish
+- [x] Read Unicode name-table strings (family/typo/full/PostScript) into metadata so name regex filters match real names, not just filenames.
+- [x] Deduplicate and sort metadata lists (tags, codepoints, names) for deterministic cache/CLI output.
+- [x] Point integration fixtures at repo-level test fonts and add name-filter regression tests (core + CLI).
 
 **Testing Mandate:** Every new feature ships with unit tests + integration tests + benchmarks before marking TODO items complete.
