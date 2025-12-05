@@ -66,7 +66,7 @@ Build typg as an ultra-fast font search/discovery toolkit (Rust core + CLI + Pyt
 ## Phase 5 — Docs & CI (status)
 - [x] Updated README with overview/install/usage across Rust CLI, Python bindings, and library surfaces, plus migration guidance for fontgrep/fontgrepc users.
 - [x] Expanded ARCHITECTURE.md to spell out data flow, typf/fontations reuse points, and current limitations.
-- [x] Added CI workflow patterned after typf/fontsimi (lint gate, cross-OS Rust tests, Python binding build/tests).
+- [x] Added CI workflow patterned after typf/twasitors (lint gate, cross-OS Rust tests, Python binding build/tests).
 - [x] Logged microbenchmarks and current limitations in WORK.md/CHANGELOG.md for traceability.
 
 ## Phase 6 — Integrations & Service (status)

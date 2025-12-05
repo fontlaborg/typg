@@ -54,7 +54,7 @@ made by FontLab https://www.fontlab.com/
 ## Phase 5 – Documentation & Verification
 - [x] Update `README.md` with overview, install, usage examples (Rust, CLI, Python)
 - [x] Create `ARCHITECTURE.md` describing data flow + reuse points from typf
-- [x] Add CI workflow referencing typf + fontsimi pipelines
+- [x] Add CI workflow referencing typf + twasitors pipelines
 - [x] Add release workflow to publish crates (typg-core/typg-cli/typg-python) and PyPI wheels on semver tags
 - [x] Document migration guidance for existing fontgrep/fontgrepc users
 - [x] Record benchmarks + known limitations in `WORK.md` and `CHANGELOG.md`

@@ -1,5 +1,5 @@
 # made by FontLab https://www.fontlab.com/
-# CI layout mirrors typf/fontsimi: lint gate, cross-platform tests, plus Python bindings check.
+# CI layout mirrors typf/twasitors: lint gate, cross-platform tests, plus Python bindings check.
 name: CI
 
 on:

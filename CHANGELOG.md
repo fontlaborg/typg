@@ -17,7 +17,7 @@ made by FontLab https://www.fontlab.com/
 - Swapped the Rust CLI binary name to `typg`, fixed build/publish scripts for git-tag semver + tokenized publishing, and added a GitHub Actions release flow that builds cross-platform wheels, publishes crates, and attaches artifacts on `vN.N.N` tags.
 - Dropped the fontgrep dev-dependency/criterion bench, fixed TTC suffix rendering in CLI plain output tests, and verified `cargo test --workspace` runs without linked/fontgrep present.
 - Expanded README with CLI/Python/Rust usage examples plus migration guidance for fontgrep/fontgrepc users; deepened ARCHITECTURE.md with reuse/limitation notes.
-- Refreshed CI to mirror typf/fontsimi layout (lint gate, cross-OS Rust tests, Python bindings check).
+- Refreshed CI to mirror typf/twasitors layout (lint gate, cross-OS Rust tests, Python bindings check).
 - Captured live-scan microbench on `typf/test-fonts` (9 faces; 20 runs: mean 30.6 ms, min 6.5 ms, max 226 ms) and documented current limitations.
 - Added pytest coverage for typg-python (variable filter + system font env override) using shared test fonts.
 - Added rayon-backed `--jobs` search parallelism (Rust + Python bindings), CLI integration tests against typf/test-fonts, and Python/Fire CLIs that accept the jobs knob.

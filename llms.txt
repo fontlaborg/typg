@@ -3202,7 +3202,7 @@ Project Structure:
 <source>.github/workflows/ci.yml</source>
 <document_content>
 # made by FontLab https://www.fontlab.com/
-# CI layout mirrors typf/fontsimi: lint gate, cross-platform tests, plus Python bindings check.
+# CI layout mirrors typf/twasitors: lint gate, cross-platform tests, plus Python bindings check.
 name: CI
 
 on:
@@ -4304,7 +4304,7 @@ Build typg as an ultra-fast font search/discovery toolkit (Rust core + CLI + Pyt
 ## Phase 5 — Docs & CI (status)
 - [x] Updated README with overview/install/usage across Rust CLI, Python bindings, and library surfaces, plus migration guidance for fontgrep/fontgrepc users.
 - [x] Expanded ARCHITECTURE.md to spell out data flow, typf/fontations reuse points, and current limitations.
-- [x] Added CI workflow patterned after typf/fontsimi (lint gate, cross-OS Rust tests, Python binding build/tests).
+- [x] Added CI workflow patterned after typf/twasitors (lint gate, cross-OS Rust tests, Python binding build/tests).
 - [x] Logged microbenchmarks and current limitations in WORK.md/CHANGELOG.md for traceability.
 
 ## Phase 6 — Integrations & Service (status)
@@ -4572,7 +4572,7 @@ made by FontLab https://www.fontlab.com/
 ## Phase 5 – Documentation & Verification
 - [x] Update `README.md` with overview, install, usage examples (Rust, CLI, Python)
 - [x] Create `ARCHITECTURE.md` describing data flow + reuse points from typf
-- [x] Add CI workflow referencing typf + fontsimi pipelines
+- [x] Add CI workflow referencing typf + twasitors pipelines
 - [x] Add release workflow to publish crates (typg-core/typg-cli/typg-python) and PyPI wheels on semver tags
 - [x] Document migration guidance for existing fontgrep/fontgrepc users
 - [x] Record benchmarks + known limitations in `WORK.md` and `CHANGELOG.md`
