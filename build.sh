@@ -10,6 +10,7 @@ PROJECT_ROOT="$SCRIPT_DIR"
 TARGET_DIR="$PROJECT_ROOT/target"
 BUILD_TYPE="${1:-release}"  # Default to release build
 PYTHON_VERSION="${2:-3.13}" # Default Python version for bindings
+SKIP_PYTHON=false           # Set to true if maturin is missing
 
 # Colors for output
 RED='\033[0;31m'
@@ -81,27 +82,25 @@ check_dependencies() {
         missing_deps+=("python${PYTHON_VERSION}")
     fi
     
-    # Check for maturin (needed for Python bindings)
+    # Check for maturin (needed for Python bindings, warn only)
     if ! command -v maturin >/dev/null 2>&1; then
-        missing_deps+=("maturin")
+        log_warning "maturin not found - Python bindings will be skipped"
+        log_info "  Install with: pip${PYTHON_VERSION} install maturin"
+        SKIP_PYTHON=true
     fi
-    
+
     if [[ ${#missing_deps[@]} -gt 0 ]]; then
         log_error "Missing dependencies: ${missing_deps[*]}"
         log_info "Install missing dependencies:"
-        
+
         if [[ " ${missing_deps[*]} " =~ " cargo " ]] || [[ " ${missing_deps[*]} " =~ " rustc " ]]; then
             log_info "  Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
         fi
-        
+
         if [[ " ${missing_deps[*]} " =~ " python${PYTHON_VERSION} " ]]; then
             log_info "  Python: Install via Homebrew or python.org"
         fi
-        
-        if [[ " ${missing_deps[*]} " =~ " maturin " ]]; then
-            log_info "  Maturin: pip${PYTHON_VERSION} install maturin"
-        fi
-        
+
         return 1
     fi
     
@@ -184,8 +183,8 @@ build_rust() {
         log_info "Building Rust workspace in debug mode..."
     fi
     
-    # Build workspace
-    cargo build $build_flags --workspace
+    # Build workspace (excluding Python bindings which need maturin)
+    cargo build $build_flags --workspace --exclude typg-python
     
     log_success "Rust components built successfully"
 }
@@ -331,7 +330,9 @@ main() {
     
     # Build components
     build_rust
-    build_python
+    if [[ "$SKIP_PYTHON" != "true" ]]; then
+        build_python
+    fi
     
     # Verify
     verify_build
