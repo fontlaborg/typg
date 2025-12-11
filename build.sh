@@ -305,17 +305,22 @@ main() {
             usage
             exit 0
             ;;
-        check)
+        check|--check	)
             check_dependencies
             run_checks
             exit 0
             ;;
-        clean)
+        clean|--clean)
             check_dependencies
             clean_build
             exit 0
             ;;
-        debug|release)
+        debug|--debug)
+			BUILD_TYPE="debug"
+            # Valid build types, continue
+            ;;
+        release|--release)
+			BUILD_TYPE="release"
             # Valid build types, continue
             ;;
         *)
