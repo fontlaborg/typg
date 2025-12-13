@@ -1,10 +1,17 @@
-//! High-performance font index using LMDB and Roaring Bitmaps.
-//! made by FontLab https://www.fontlab.com/
-//!
-//! This module provides O(K) query performance on massive font collections by:
-//! - Using LMDB for memory-mapped access
-//! - Using Roaring Bitmaps for ultra-fast tag intersection
-//! - Using simple bitset for Unicode coverage filtering
+/// The lightning-fast library catalog that remembers every font it meets
+///
+/// Like a master librarian with perfect recall, this index can find your
+/// needle in a haystack of millions of fonts in the blink of an eye. We've
+/// built this using the finest database technology - LMDB for silky-smooth
+/// memory mapping and Roaring Bitmaps for the kind of set operations that
+/// make other indexing systems weep with envy.
+///
+/// Our secret sauce? We never forget a face (or a font) and we can answer
+/// the most complex questions faster than you can ask them. Think of it as
+/// having a font conversation partner who's read every book in the library
+/// and remembers every character they've ever met.
+///
+/// Made with speed and elegance at FontLab https://www.fontlab.com/
 
 use std::collections::HashSet;
 use std::fs;
@@ -23,37 +30,45 @@ use serde::{Deserialize, Serialize};
 use crate::query::{FamilyClassFilter, Query};
 use crate::search::TypgFontFaceMatch;
 
-/// Unique identifier for a font face within the index.
+/// Each font gets their own library card number - simple and elegant
 pub type FontID = u64;
 
-/// Maximum size for the LMDB environment (10 GB should handle >1M fonts).
+/// Our library can hold millions of font volumes (10GB handles >1M fonts)
 const MAX_DB_SIZE: usize = 10 * 1024 * 1024 * 1024;
 
-/// Number of named databases in the environment.
+/// We keep our catalog organized in 10 neat sections
 const MAX_DBS: u32 = 10;
 
-/// Metadata stored for each font face.
+/// The library card we fill out for every font that checks in
+///
+/// We capture the essence of each font - where they live, what they're
+/// called, their special talents, and which characters they know how to draw.
+/// Think of this as the font's permanent record in our library system.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IndexedFontMeta {
-    /// Font file path.
+    /// Where this font hangs out on the filesystem
     pub path: String,
-    /// TTC index (None for single-face fonts).
+    /// Which door to knock on in multi-font apartment buildings (TTC files)
     pub ttc_index: Option<u32>,
-    /// Font names (family, typo, full, PostScript).
+    /// All the aliases and names this font goes by
     pub names: Vec<String>,
-    /// Variable font flag.
+    /// Can this font change shape like a chameleon?
     pub is_variable: bool,
-    /// OS/2 weight class.
+    /// How bold does this font think it is (on the 100-900 scale)
     pub weight_class: Option<u16>,
-    /// OS/2 width class.
+    /// How wide does this font like to stretch (condensed to expanded)
     pub width_class: Option<u16>,
-    /// OS/2 family class (major, subclass).
+    /// What typographic family does this font belong to?
     pub family_class: Option<(u8, u8)>,
-    /// Unicode coverage stored as a Roaring Bitmap.
+    /// Every character this font can draw, compressed into a clever bitmap
     pub cmap_bitmap: Vec<u8>,
 }
 
-/// Path lookup entry for incremental updates.
+/// Quick lookup card so we know when fonts need updating
+///
+/// Like a library checkout card that tracks when a font was last seen.
+/// We use this for smart incremental updates - no need to re-read
+/// fonts that haven't changed their story.
 #[derive(Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
 struct PathEntry {
@@ -61,21 +76,34 @@ struct PathEntry {
     mtime_secs: u64,
 }
 
-/// The high-performance font index backed by LMDB.
+/// The magnificent library itself - where all font knowledge lives
+///
+/// This is our grand hall of fonts, powered by LMDB's memory-mapped magic
+/// and organized with the precision of a master librarian. We keep three
+/// main catalogs: one for font biographies, one for lightning-fast tag
+/// lookups, and one for path-to-ID mappings.
+///
+/// Everything is designed for speed - queries run in O(K) time even with
+/// millions of fonts, because we believe you shouldn't wait for answers.
 pub struct FontIndex {
     env: Env,
-    /// DB_METADATA: FontID -> bincode<IndexedFontMeta>
+    /// DB_METADATA: FontID -> The complete biography of each font
     db_metadata: Database<U64<byteorder::NativeEndian>, Bytes>,
-    /// DB_INVERTED_TAGS: Tag (u32 as bytes) -> Roaring Bitmap bytes
+    /// DB_INVERTED_TAGS: Tag -> Which fonts have this superpower
     db_inverted: Database<Bytes, Bytes>,
-    /// DB_PATH_TO_ID: PathHash (u64) -> PathEntry
+    /// DB_PATH_TO_ID: PathHash -> Quick lookup card for incremental updates
     db_path_to_id: Database<U64<byteorder::NativeEndian>, Bytes>,
-    /// Next available FontID.
+    /// The next available library card number
     next_id: AtomicU64,
 }
 
 impl FontIndex {
-    /// Open or create a font index at the given directory path.
+    /// Opens our magnificent font library or builds a new one from scratch
+    /// 
+    /// We'll create the directory if it doesn't exist, set up our LMDB
+    /// environment with plenty of room for millions of fonts, and establish
+    /// our three main catalogs. If there are already books on the shelves,
+    /// we'll figure out the next available library card number.
     pub fn open(index_dir: &Path) -> Result<Self> {
         fs::create_dir_all(index_dir)
             .with_context(|| format!("creating index directory {}", index_dir.display()))?;
@@ -115,13 +143,21 @@ impl FontIndex {
         })
     }
 
-    /// Get the number of indexed font faces.
+    /// Counts how many fonts are currently enjoying our library hospitality
+    /// 
+    /// A quick headcount of all the fonts we have indexed - perfect for
+    /// statistics, progress bars, or just satisfying your curiosity about
+    /// how big your font collection has grown.
     pub fn count(&self) -> Result<usize> {
         let rtxn = self.env.read_txn()?;
         Ok(self.db_metadata.len(&rtxn)? as usize)
     }
 
-    /// Create an index writer for atomic ingestion.
+    /// Hands out a library card for adding new fonts to our collection
+    /// 
+    /// We give you a writer's pass that lets you add fonts safely.
+    /// Everything happens in a transaction, so either all your fonts
+    /// get added properly or none of them do - no half-finished stories.
     pub fn writer(&self) -> Result<IndexWriter<'_>> {
         let wtxn = self.env.write_txn()?;
         Ok(IndexWriter {
@@ -131,13 +167,20 @@ impl FontIndex {
         })
     }
 
-    /// Create an index reader for queries.
+    /// Provides a reader's pass for browsing our font collection
+    /// 
+    /// Your ticket to search and explore everything we know about fonts.
+    /// Readers don't modify anything - they're polite observers who
+    /// appreciate the finesse of our catalog without making a mess.
     pub fn reader(&self) -> Result<IndexReader<'_>> {
         let rtxn = self.env.read_txn()?;
         Ok(IndexReader { index: self, rtxn })
     }
 
-    /// Allocate the next FontID.
+    /// Issues the next available library card number for a new font
+    /// 
+    /// We keep track of IDs atomically so no two fonts ever get the same
+    /// number. Simple, fast, and reliable - just how we like our bookkeeping.
     fn alloc_id(&self) -> FontID {
         self.next_id.fetch_add(1, Ordering::Relaxed)
     }

@@ -1,4 +1,11 @@
-//! typg CLI (made by FontLab https://www.fontlab.com/)
+//! typg CLI - The gentle font finder that discovers your type treasures
+//!
+//! Like a friendly librarian who knows exactly where the good books are hiding,
+//! typg wanders through your font collections and surfaces the gems you need.
+//! No more hunting through endless directories - just tell it what you're looking for
+//! and watch it work its magic.
+//!
+//! Made by FontLab https://www.fontlab.com/ - because finding fonts should be delightful,
 
 mod server;
 
@@ -25,14 +32,18 @@ use typg_core::search::{filter_cached, search, SearchOptions, TypgFontFaceMatch}
 #[cfg(feature = "hpindex")]
 use typg_core::index::FontIndex;
 
-/// CLI entrypoint for typg.
+/// The friendly face of typg - your font-finding companion
+///
+/// Think of this as the welcoming front desk where your font adventures begin.
+/// It greets you, listens to what you need, and points you toward exactly the
+/// right tools for the job. No complex ceremonies - just helpful direction.
 #[derive(Debug, Parser)]
 #[command(
     name = "typg",
-    about = "Ultra-fast font search/discovery (made by FontLab https://www.fontlab.com/)"
+    about = "Gentle font discovery that actually finds what you need (made by FontLab https://www.fontlab.com/)"
 )]
 pub struct Cli {
-    /// Suppress informational messages (only output results)
+    /// Shhh... let the results speak for themselves
     #[arg(short = 'q', long = "quiet", global = true, action = ArgAction::SetTrue)]
     quiet: bool,
 
@@ -40,89 +51,98 @@ pub struct Cli {
     command: Command,
 }
 
+/// The three paths your font journey can take
+///
+/// Each command is like a different trail through the font wilderness.
+/// One meanders through live directories, another explores cached treasures,
+/// and the third opens a cozy tea room for remote visitors.
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Live search over filesystem paths (fontgrep parity)
+    /// Wander through live directories and discover fonts right where they live
     Find(FindArgs),
 
-    /// Manage and query the on-disk cache (fontgrepc parity)
+    /// Browse your curated font collection without disturbing the files
     #[command(subcommand)]
     Cache(CacheCommand),
 
-    /// Run HTTP server for remote typg queries
+    /// Share your font-finding powers with the world via HTTP
     Serve(ServeArgs),
 }
 
+/// Your cache management toolkit - like a gentle librarian organizing bookshelves
 #[derive(Debug, Subcommand)]
 enum CacheCommand {
-    /// Ingest fonts into the cache
+    /// Invite new fonts into your carefully curated collection
     Add(CacheAddArgs),
-    /// List cached entries
+    /// Take inventory of all the treasures you've gathered
     List(CacheListArgs),
-    /// Query cached entries without filesystem IO
+    /// Browse your collection without making a mess on the filesystem
     Find(CacheFindArgs),
-    /// Drop cache entries whose source files are missing
+    /// Gently remove traces of fonts that have wandered away
     Clean(CacheCleanArgs),
-    /// Show cache/index statistics
+    /// Share fascinating statistics about your font empire
     Info(CacheInfoArgs),
 }
 
+/// Where to hang your "Open" sign for the world to see
 #[derive(Debug, Args)]
 struct ServeArgs {
-    /// Bind address for the HTTP server (e.g. 127.0.0.1:8765)
+    /// The street address for your font-discovery tea room
     #[arg(long = "bind", default_value = "127.0.0.1:8765")]
     bind: String,
 }
 
+/// The gentle invitation to bring fonts into your collection
 #[derive(Debug, Args)]
 struct CacheAddArgs {
-    /// Paths to ingest (directories or files)
+    /// Doorways to explore - could be a cozy folder or a single font file
     #[arg(
         value_hint = ValueHint::DirPath,
         required_unless_present_any = ["system_fonts", "stdin_paths"]
     )]
     paths: Vec<PathBuf>,
 
-    /// Read newline-delimited paths from STDIN
+    /// Listen carefully to paths whispered through standard input
     #[arg(long = "stdin-paths", action = ArgAction::SetTrue)]
     stdin_paths: bool,
 
-    /// Include common system font directories automatically
+    /// Automatically visit where your system keeps its font treasures
     #[arg(long = "system-fonts", action = ArgAction::SetTrue)]
     system_fonts: bool,
 
-    /// Follow symlinks while walking paths
+    /// Be brave and follow those mysterious shortcut signs
     #[arg(long = "follow-symlinks", action = ArgAction::SetTrue)]
     follow_symlinks: bool,
 
-    /// Number of worker threads (defaults to CPU count)
+    /// How many helpful assistants should join the adventure
     #[arg(short = 'J', long = "jobs", value_hint = ValueHint::Other)]
     jobs: Option<usize>,
 
-    /// Override cache location (defaults to ~/.cache/typg/cache.json)
+    /// Where to store your carefully organized collection
     #[arg(long = "cache-path", value_hint = ValueHint::FilePath)]
     cache_path: Option<PathBuf>,
 
-    /// Use high-performance LMDB index instead of JSON cache (requires hpindex feature)
+    /// Switch to the speedy database backend for serious collections
     #[arg(long = "index", action = ArgAction::SetTrue)]
     use_index: bool,
 
-    /// Override index directory (defaults to ~/.cache/typg/index/)
+    /// The secret garden for your high-performance index
     #[arg(long = "index-path", value_hint = ValueHint::DirPath)]
     index_path: Option<PathBuf>,
 }
 
+/// How your font discoveries should dress up for presentation
 #[derive(Debug, Args, Clone)]
 struct OutputArgs {
-    /// Emit a single JSON array
+    /// Wrap everything up in one tidy JSON gift box
     #[arg(long = "json", action = ArgAction::SetTrue, conflicts_with = "ndjson")]
     json: bool,
 
-    /// Emit newline-delimited JSON
+    /// Send results down the line one at a time
     #[arg(long = "ndjson", action = ArgAction::SetTrue)]
     ndjson: bool,
 
-    /// Emit newline-delimited font paths (with #index for TTC)
+    /// Just a simple list of where to find your treasures
     #[arg(
         long = "paths",
         action = ArgAction::SetTrue,
@@ -130,11 +150,11 @@ struct OutputArgs {
     )]
     paths: bool,
 
-    /// Format output as padded columns
+    /// Arrange everything in neat, orderly columns like a proper bibliography
     #[arg(long = "columns", action = ArgAction::SetTrue)]
     columns: bool,
 
-    /// Control colorized output (auto|always|never)
+    /// Add a splash of color brighten your results
     #[arg(long = "color", default_value_t = ColorChoice::Auto, value_enum)]
     color: ColorChoice,
 }
@@ -362,7 +382,11 @@ enum ColorChoice {
     Never,
 }
 
-/// Parse CLI args and execute the selected command.
+/// The grand entrance where your font-finding adventure begins
+///
+/// Like a helpful concierge, this listens to your requests and guides you
+/// to exactly the right experience. It understands what you need and
+/// orchestrates the perfect journey through your font collection.
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     let quiet = cli.quiet;
@@ -380,6 +404,11 @@ pub fn run() -> Result<()> {
     }
 }
 
+/// The filesystem wanderer - explores directories to find your treasures
+///
+/// This gentle explorer tiptoes through your directories, carefully examining
+/// each font it meets. It respects your boundaries, follows your hints,
+/// and returns with a beautifully curated collection of matches.
 fn run_find(args: FindArgs) -> Result<()> {
     if matches!(args.jobs, Some(0)) {
         return Err(anyhow!("--jobs must be at least 1"));
@@ -469,6 +498,11 @@ fn write_matches(matches: &[TypgFontFaceMatch], format: &OutputFormat) -> Result
     Ok(())
 }
 
+/// The careful listener that turns your wishes into a proper search query
+///
+/// This function pays close attention to everything you asked for, gently
+/// organizing your preferences into a structured query that the search
+/// engine can understand and act upon.
 fn build_query(args: &FindArgs) -> Result<Query> {
     build_query_from_parts(
         &args.axes,
@@ -1031,6 +1065,11 @@ fn resolve_index_path(custom: &Option<PathBuf>) -> Result<PathBuf> {
     ))
 }
 
+/// The patient librarian who retrieves your cached font memories
+///
+/// This gentle reader opens your carefully stored cache and lovingly restores
+/// each font entry. If the format looks a bit old-fashioned, it kindly adapts
+/// and understands anyway - because good relationships withstand change.
 fn load_cache(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
     let file = File::open(path).with_context(|| format!("opening cache {}", path.display()))?;
     let reader = BufReader::new(file);
@@ -1038,7 +1077,7 @@ fn load_cache(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
     match serde_json::from_reader(reader) {
         Ok(entries) => Ok(entries),
         Err(_) => {
-            // Fallback to NDJSON parsing for forward compatibility.
+            // Fallback to NDJSON parsing for forward compatibility - like being bilingual
             let file =
                 File::open(path).with_context(|| format!("re-opening cache {}", path.display()))?;
             let reader = BufReader::new(file);
@@ -1052,6 +1091,11 @@ fn load_cache(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
     }
 }
 
+/// The careful archivist who preserves your font discoveries for future visits
+///
+/// This thoughtful writer carefully prepares a cozy home for your font memories,
+/// making sure everything is tidy and beautifully arranged for next time.
+/// It even builds the bookshelf first if it doesn't exist yet.
 fn write_cache(path: &Path, entries: &[TypgFontFaceMatch]) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;

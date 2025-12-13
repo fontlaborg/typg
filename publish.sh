@@ -195,7 +195,7 @@ get_semver_version() {
 
     local raw_version
     pushd "$PROJECT_ROOT/typg-python" >/dev/null
-    if ! raw_version=$(hatch version 2>/dev/null); then
+    if ! raw_version=$(uvx hatch version 2>/dev/null); then
         popd >/dev/null
         log_error "Failed to read version from hatch-vcs; ensure git tags exist"
         return 1

@@ -1,4 +1,16 @@
-//! Query parsing and matching (made by FontLab https://www.fontlab.com/)
+/// The charming matchmaker who knows exactly which fonts you're looking for
+///
+/// Think of this as your personal font dating service - you tell us your
+/// preferences, your must-haves, your deal-breakers, and we'll find the
+/// fonts that make your heart skip a beat. Whether you're looking for
+/// something variable, something that speaks Arabic, or something with
+/// just the right weight, we ask the right questions to find your perfect match.
+///
+/// We're fluent in the language of fonts - tags, ranges, patterns, and more.
+/// Tell us what you want in human terms, and we'll translate it into the
+/// precise criteria that make our index purr with satisfaction.
+///
+/// Crafted with matchmaking expertise at FontLab https://www.fontlab.com/
 
 use std::collections::{HashMap, HashSet};
 use std::ops::RangeInclusive;
@@ -10,17 +22,34 @@ use regex::Regex;
 use crate::search::TypgFontFaceMeta;
 use crate::tags::tag4;
 
+/// Your personal font shopping list with very specific tastes
+///
+/// We remember every detail of what you're looking for - the features you
+/// need, the scripts that are non-negotiable, the weight range that feels
+/// just right, and whether you need a font that can shape-shift like a
+/// superhero. This is your complete shopping manifest that tells our
+/// index exactly what to hunt for.
 #[derive(Debug, Clone, Default)]
 pub struct Query {
+    /// Variable font capabilities you can't live without
     axes: Vec<Tag>,
+    /// OpenType features that make you swoon
     features: Vec<Tag>,
+    /// Languages and scripts your font must speak
     scripts: Vec<Tag>,
+    /// Table requirements for your typographic adventures
     tables: Vec<Tag>,
+    /// Name patterns that catch your eye
     name_patterns: Vec<Regex>,
+    /// Specific characters your font must know how to draw
     codepoints: Vec<char>,
+    /// Are you only looking for fonts that can shape-shift?
     variable_only: bool,
+    /// The perfect weight range (from delicate whispers to bold declarations)
     weight_range: Option<RangeInclusive<u16>>,
+    /// How wide or narrow you like your fonts to stretch
     width_range: Option<RangeInclusive<u16>>,
+    /// What typographic family you belong to
     family_class: Option<FamilyClassFilter>,
 }
 
@@ -131,7 +160,14 @@ impl Query {
         self.family_class.as_ref()
     }
 
-    /// Check whether the provided font metadata satisfies the query filters.
+    /// The moment of truth - does this font make your heart flutter?
+    /// 
+    /// We gently interview each font against your complete wishlist.
+    /// Every requirement gets checked - no corner cutting, no compromises.
+    /// Only fonts that truly match your vision get the coveted "yes" that
+    /// makes them part of your search results.
+    /// 
+    /// Returns true if this font is worthy of your affection, false otherwise.
     pub fn matches(&self, meta: &TypgFontFaceMeta) -> bool {
         if self.variable_only && !meta.is_variable {
             return false;
@@ -212,7 +248,15 @@ fn contains_all_tags(haystack: &[Tag], needles: &[Tag]) -> bool {
     needles.iter().all(|tag| set.contains(tag))
 }
 
-/// Parse comma-delimited codepoints and ranges (e.g. `U+0041-U+0044,B`).
+/// Translates your character wishes into Unicode reality
+/// 
+/// We understand when you say "A-D" or "U+0041-U+0044" or just "A,B,C".
+/// We'll happily parse comma-separated values, ranges, single characters,
+/// or those fancy U+ codes that Unicode professionals love. Just give us
+/// your character shopping list and we'll return it in a format our system
+/// can understand.
+/// 
+/// Accepts: "A-Z", "U+0041-U+005A", "A,B,C", or any combination thereof.
 pub fn parse_codepoint_list(input: &str) -> Result<Vec<char>> {
     let mut result = Vec::new();
     if input.trim().is_empty() {
@@ -255,7 +299,14 @@ fn parse_codepoint(token: &str) -> Result<char> {
     char::from_u32(cp).ok_or_else(|| anyhow!("invalid Unicode scalar: U+{cp:04X}"))
 }
 
-/// Parse a collection of tag strings into `Tag`s, rejecting invalid lengths.
+/// Translates human-readable tag strings into the cryptic codes fonts speak
+/// 
+/// You give us friendly strings like "wght", "smcp", or "GSUB" and we
+/// convert them into the proper 4-byte tags that fonts actually understand.
+/// We're picky about formatting - no cheating with tags that are too long
+/// or contain mysterious characters. Only the finest tags make it through.
+/// 
+/// Each string must be 1-4 characters of printable ASCII goodness.
 pub fn parse_tag_list(raw: &[String]) -> Result<Vec<Tag>> {
     raw.iter().map(|s| tag4(s)).collect()
 }
@@ -266,7 +317,14 @@ pub struct FamilyClassFilter {
     pub subclass: Option<u8>,
 }
 
-/// Parse OS/2 family class using class IDs or friendly names (e.g., "8", "8.11", "0x0805", "sans").
+/// Decodes the secret family language of typographic classification
+/// 
+/// Font families speak in mysterious codes that tell us where they belong
+/// in the grand typographic taxonomy. We understand their native tongue
+/// whether you speak in numbers ("8"), hex ("0x0800"), decimal with subclass
+/// ("8.11"), or human-friendly names like "sans", "serif", or "script".
+/// 
+/// Each font family has a story to tell, and we're fluent in their dialect.
 pub fn parse_family_class(input: &str) -> Result<FamilyClassFilter> {
     let trimmed = input.trim();
     if trimmed.is_empty() {

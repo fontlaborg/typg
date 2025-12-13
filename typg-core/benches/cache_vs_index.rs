@@ -1,10 +1,19 @@
-//! Benchmark: live scan vs LMDB index query performance
-//! made by FontLab https://www.fontlab.com/
-//!
+//! A gentle comparison: methodical scanning vs remembered facts
+//! 
+//! Picture two librarians - one methodically checks every book each time
+//! you ask about fonts, while the other keeps perfect notes and answers
+//! instantly. Both get you there, but one prefers taking the scenic route.
+//! 
+//! The indexed approach usually finishes its tea before the live scan
+//! finds the first book, but both methods have their charms. This benchmark
+//! measures the difference in milliseconds, though we appreciate both approaches.
+//! 
 //! Run with: cargo bench --features hpindex -p typg-core
-//!
-//! Note: For meaningful benchmarks, set TYPF_TEST_FONTS to a directory
-//! with many font files (e.g., 100+ fonts).
+//! 
+//! For meaningful comparisons, point TYPF_TEST_FONTS at a directory with
+//! 100+ fonts - more books make for a more interesting comparison.
+//! 
+//! Crafted with curiosity at FontLab https://www.fontlab.com/
 
 use std::env;
 use std::fs;
@@ -51,6 +60,12 @@ fn fonts_dir() -> Option<PathBuf> {
     None
 }
 
+/// The methodical approach: searching fonts with fresh eyes each time
+/// 
+/// Like a librarian who carefully examines every book for each request,
+/// this method reads font files directly every single time you ask.
+/// Unfailingly accurate and wonderfully thorough, though it prefers
+/// taking the scenic route through every byte of the filesystem.
 fn bench_live_scan(c: &mut Criterion) {
     let fonts = match fonts_dir() {
         Some(dir) => dir,
@@ -74,6 +89,13 @@ fn bench_live_scan(c: &mut Criterion) {
     });
 }
 
+/// The remembered approach: instant answers from prepared knowledge
+/// 
+/// Like a librarian with perfect notes and excellent organization skills,
+/// this index remembers what it learned earlier and answers queries instantly.
+/// Complex questions become simple lookups, with responses arriving before
+/// you've finished your morning tea. It's having a knowledgeable assistant
+/// who's already done the reading and kept excellent notes.
 fn bench_lmdb_index(c: &mut Criterion) {
     let fonts = match fonts_dir() {
         Some(dir) => dir,

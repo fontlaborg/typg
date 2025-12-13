@@ -1,5 +1,10 @@
 """
-Fire-based CLI wrapper for typg-python bindings.
+Command-line interface for Typg font discovery system.
+
+Translates Python bindings into an intuitive Fire-based CLI that searches, filters
+and matches fonts by criteria like axes, features, scripts, text support, and
+metadata. Handles path resolution from multiple sources including stdin and system
+directories.
 """
 
 from __future__ import annotations
@@ -15,6 +20,8 @@ from . import find, find_paths
 
 
 def _dedup_paths(paths: Iterable[Path]) -> List[Path]:
+    # Remove duplicate paths while preserving original order.
+    # Uses set membership test for O(1) lookup complexity.
     seen: set[Path] = set()
     ordered: List[Path] = []
     for path in paths:
@@ -25,6 +32,8 @@ def _dedup_paths(paths: Iterable[Path]) -> List[Path]:
 
 
 def _system_font_roots() -> List[Path]:
+    # Return platform-specific system font directories.
+    # Respects TYPOG_SYSTEM_FONT_DIRS env var or defaults to OS paths.
     env = os.getenv("TYPOG_SYSTEM_FONT_DIRS")
     if env:
         parts = [Path(p) for p in env.split(os.pathsep) if p]
@@ -65,6 +74,8 @@ def _gather_paths(
     stdin_paths: bool,
     include_system: bool,
 ) -> List[str]:
+    # Consolidate font search paths from multiple sources.
+    # Sources: CLI args, stdin (--), system directories.
     collected: list[Path] = []
 
     if stdin_paths:
@@ -107,7 +118,10 @@ def find_cli(
     paths_only: bool = False,
 ):
     """
-    Run typg search from Python bindings.
+    Fire-exposed command for font discovery.
+    
+    Accepts font filtering criteria and delegates to find() or find_paths()
+    based on paths_only flag. All string sequences converted to lists.
     """
 
     gathered = _gather_paths(paths, stdin_paths, system_fonts)
@@ -148,6 +162,7 @@ def find_cli(
 
 
 def main():
+    # Entry point: Fire converts find_cli to command-line interface.
     fire.Fire({"find": find_cli})
 
 

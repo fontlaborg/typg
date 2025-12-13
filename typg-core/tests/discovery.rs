@@ -1,3 +1,10 @@
+/// Testing our font-finding expedition skills
+/// 
+/// These tests make sure our brave filesystem explorers can find fonts
+/// in all the usual hiding spots - nested directories, various file
+/// extensions, and even those tricky symlink shortcuts when we're feeling
+/// adventurous. No font left behind!
+
 use std::path::PathBuf;
 
 use typg_core::discovery::{FontDiscovery, PathDiscovery};
