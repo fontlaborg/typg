@@ -12,11 +12,76 @@ Project Structure:
 │   │       ├── 📁 deps
 │   │       ├── 📁 examples
 │   │       └── 📁 incremental
+│   ├── 📁 debug
+│   │   ├── 📁 deps
+│   │   ├── 📁 examples
+│   │   └── 📁 incremental
+│   │       ├── 📁 build_script_build-18xj97pwi5lu1
+│   │       │   └── 📁 s-hdvit6c3uy-1bd22oo-bcoazc5xqq8heumzpl3x3wq56
+│   │       ├── 📁 cached_search-0ht9pnu08p418
+│   │       │   └── 📁 s-hdviv38d0f-1wyj8pz-c8q11us7aotrwfy5y9mw5p4wr
+│   │       ├── 📁 discovery-39xi8u1ecrado
+│   │       │   └── 📁 s-hdviv38epy-1hl3ps2-7aajx19sg529k3z04cg4z7f3d
+│   │       ├── 📁 integration-2wix188oj5l4g
+│   │       │   └── 📁 s-hdv1p8uhzf-1hlzmjk-1e7pp7c4dd0u112ohnkcvamu2
+│   │       ├── 📁 integration-3ppa727cq5cnd
+│   │       │   └── 📁 s-hdviv3gput-141ixwc-bi5lsamtcq6bkz0eojandgqze
+│   │       ├── 📁 metadata_names-1j1i257hm72y0
+│   │       │   └── 📁 s-hdviv38c1m-1c62e2s-7euiznc6axxl3wby4pgbpd0mi
+│   │       ├── 📁 output-37yjw1nh72a6o
+│   │       │   └── 📁 s-hdviv38eci-0e2flzo-72nhqgxdvmfaefy5hb0txd3h5
+│   │       ├── 📁 query_parser-01x3wtz08qynp
+│   │       │   └── 📁 s-hdviv388rk-0hwmxzy-8lkoeq064s6wf8vlw8qao4fec
+│   │       ├── 📁 search_filters-3e9s3j9y1t5k8
+│   │       │   └── 📁 s-hdviv38clx-0ath3yn-4kot4dohnqxr7ge6o4sphfr0f
+│   │       ├── 📁 typg-0h24n7yxz5x2m
+│   │       │   └── 📁 s-hdv1tai4py-02dyvcn-1zqq8501zf9sj17wic21hgh60
+│   │       ├── 📁 typg-21iraa7mc9kfm
+│   │       │   └── 📁 s-hdviv3gplm-0qjhrui-f5fuw0marez5a1y4jjbcn79h4
+│   │       ├── 📁 typg-2t4gec7g8xrjq
+│   │       │   └── 📁 s-hdv1p8uhkc-180a368-2cha617jxaoy12ucyc2vo4uo2
+│   │       ├── 📁 typg-2v1e6a09mofbe
+│   │       │   └── 📁 s-hdv1p8uhn4-02e6df3-91kvozqcrl6jzgmoae79x5w30
+│   │       ├── 📁 typg-325xnjpctolnv
+│   │       │   └── 📁 s-hdviv3gpln-1w2ybd4-4u3dxufl9n1i00fkb4qhnsk3t
+│   │       ├── 📁 typg_cli-0gyx6dtlpm6sk
+│   │       │   └── 📁 s-hdv1p8bf8a-17kbxv4-8d1natpyo5bbomp51vpuiopur
+│   │       ├── 📁 typg_cli-2dm1c44pbgvln
+│   │       │   └── 📁 s-hdviv36obh-1no9if4-bst59gkfz27og96lv6lzd4egb
+│   │       ├── 📁 typg_cli-2oizlikw4bhjf
+│   │       │   └── 📁 s-hdviv38e0d-1ft5qr3-89bh782uosz1bz9nha5y6dp1n
+│   │       ├── 📁 typg_cli-2p1utkdp0hnev
+│   │       │   └── 📁 s-hdv1tadpr5-0f2n2sy-1e8b6kyqjfdigqiujxw3kn6xv
+│   │       ├── 📁 typg_cli-3hdzzjkweuwxa
+│   │       │   └── 📁 s-hdv1p88y0p-1iy74ut-5rvvpyao3ay6mhcy5atfiv3oo
+│   │       ├── 📁 typg_core-06fj3acqzzhao
+│   │       │   └── 📁 s-hdvitdtvt9-0qg4hkn-45bx9tfu73zeg2gx2cgrspw51
+│   │       ├── 📁 typg_core-0mwnwa85ownwf
+│   │       │   └── 📁 s-hdviv34d6e-1qkho14-ckb5w3ktl2yjztvp4p18sne1m
+│   │       ├── 📁 typg_core-1k1htx0fpfeev
+│   │       │   └── 📁 s-hdvit7h8uc-13fghle-75o9twexqicbhgd2m9yti05xw
+│   │       ├── 📁 typg_core-202rocnikijhd
+│   │       │   └── 📁 s-hdviv34d6e-0u9yfc1-82uhlrm5k8zib0nat3ezwi02n
+│   │       ├── 📁 typg_core-24a8fd653fvv6
+│   │       │   └── 📁 s-hdv1p3zvbr-1p2r4cf-6pc0a82ze7er945iclbil0i8m
+│   │       ├── 📁 typg_core-2ih0gyq2tg8n1
+│   │       │   └── 📁 s-hdv1p81nky-1gqw0ml-ac9i9xmypvu3usamcirduhm9q
+│   │       ├── 📁 typg_python-0aqma4pt8dghe
+│   │       │   └── 📁 s-hdvit9ahu8-05ztri7-9unprnp9ein6zrzkxst2844aq
+│   │       ├── 📁 typg_python-1hvecc1zbydqk
+│   │       │   └── 📁 s-hdvitf7jvm-132e99o-epeis20xdy245mdohm75kyy1u
+│   │       ├── 📁 typg_python-1ya5zqv8q8zfu
+│   │       │   └── 📁 s-hdviv38cej-07skfdc-9kr6p5u6x4jhqibg0jfyjgfhz
+│   │       ├── 📁 typg_python-2htt6wktn6e1o
+│   │       │   └── 📁 s-hdvitf7jvl-15hz2p8-9vu4hvs6x3ulogietlsytvhgp
+│   │       └── 📁 typg_python-31muuauyps2sy
+│   │           └── 📁 s-hdviv38dcm-16pu70d-285dhlyc9sbgte8eg0096aqbt
 │   ├── 📁 maturin
 │   ├── 📁 release
 │   │   ├── 📁 deps
 │   │   ├── 📁 examples
 │   │   └── 📁 incremental
+│   ├── 📁 tmp
 │   └── 📁 wheels
 ├── 📁 typg-cli
 │   ├── 📁 src
