@@ -111,7 +111,7 @@ let matches = search(&paths, &query, &SearchOptions::default())?;
 - Add tests (property for parsers, snapshot for CLI) before marking tasks done.
 
 ## Project links
-- Plan: `PLAN.md`
+- Plan: `TASKS.md`
 - Tasks: `TODO.md`
 - Spec: `docs/spec.md`
 - Architecture: `ARCHITECTURE.md`

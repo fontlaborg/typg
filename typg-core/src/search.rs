@@ -5,7 +5,6 @@
 /// each font has to say, then help you find the ones that are singing your tune.
 ///
 /// Made with care at FontLab https://www.fontlab.com/
-
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -86,7 +85,7 @@ pub struct TypgFontSource {
 
 impl TypgFontSource {
     /// Creates a friendly address that includes apartment numbers for collections
-    /// 
+    ///
     /// Regular fonts get their regular address, but fonts in collections
     /// get a helpful "#0", "#1", etc. suffix to show which roommate we mean.
     pub fn path_with_index(&self) -> String {
@@ -125,12 +124,12 @@ pub struct SearchOptions {
 }
 
 /// The grand orchestrator of font discovery expeditions
-/// 
+///
 /// We take your list of neighborhoods to explore (paths), your specific
 /// criteria for the perfect font match (query), and your preferred style
 /// of exploration (opts). Then we venture forth, chat up all the fonts
 /// we meet, and return with the ones that caught your eye.
-/// 
+///
 /// Returns: A tastefully arranged collection of font matches, sorted by neighborhood.
 pub fn search(
     paths: &[PathBuf],
@@ -165,12 +164,12 @@ pub fn search(
 }
 
 /// Speed dating with fonts you've already met (no file system required)
-/// 
+///
 /// When you have a list of fonts you've already gotten to know, sometimes
 /// you just want to filter them by new criteria without re-reading all those
 /// font files. This is like having address cards for everyone at the party
 /// and quickly finding who matches your new interests.
-/// 
+///
 /// Returns: A curated subset of your existing font acquaintances.
 pub fn filter_cached(entries: &[TypgFontFaceMatch], query: &Query) -> Vec<TypgFontFaceMatch> {
     let mut matches: Vec<TypgFontFaceMatch> = entries
@@ -184,12 +183,12 @@ pub fn filter_cached(entries: &[TypgFontFaceMatch], query: &Query) -> Vec<TypgFo
 }
 
 /// The gentle interrogation of a font file to learn all its secrets
-/// 
+///
 /// We knock on the font's door, politely ask to come in, and then
 /// carefully extract every interesting detail about what makes it
 /// special. Like a good interviewer, we know exactly which questions
 /// to ask to get the font to open up and share its story.
-/// 
+///
 /// For font collections, we chat with each roommate individually.
 fn load_metadata(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
     let data = fs::read(path).with_context(|| format!("reading font {}", path.display()))?;

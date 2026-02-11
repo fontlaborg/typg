@@ -7,7 +7,7 @@ Objective: build typg — an ultra-fast font search/discovery toolkit with a Rus
 
 **For every task, follow this baseline:**
 
-1. [ ] Read `README.md`, `PLAN.md`, `TODO.md`, `WORK.md` to understand context
+1. [ ] Read `README.md`, `TASKS.md`, `TODO.md`, `WORK.md` to understand context
 2. [ ] Apply Chain-of-Thought: "Let me think step by step..."
 3. [ ] Search when <90% confident (codebase, references, web)
 4. [ ] Check if this problem has been solved before (packages > custom code)
@@ -119,7 +119,7 @@ After drafting any solution:
 
 ### 3.1 Before Starting (MUST)
 
-1. Read `README.md`, `WORK.md`, `CHANGELOG.md`, `PLAN.md`, `TODO.md`
+1. Read `README.md`, `WORK.md`, `CHANGELOG.md`, `TASKS.md`, `TODO.md`
 2. Run existing tests to understand current state
 3. Apply Enhanced CoT (Analyze → Abstract → Execute)
 4. Search for existing solutions before writing code
@@ -314,8 +314,8 @@ uvx ruff check --fix . && uvx ruff format . && pytest
 
 - **README.md** – Purpose and quick start (<200 lines)
 - **CHANGELOG.md** – Cumulative release notes
-- **PLAN.md** – Detailed future goals and architecture
-- **TODO.md** – Flat task list from PLAN.md with status:
+- **TASKS.md** – Detailed future goals and architecture
+- **TODO.md** – Flat task list from TASKS.md with status:
   - `[ ]` Not started
   - `[x]` Completed  
   - `[~]` In progress
@@ -336,7 +336,7 @@ When invoked, MUST:
 2. **Deconstruct** into core requirements and constraints
 3. **Analyze** feasibility and identify packages to use
 4. **Structure** into phases with dependencies
-5. **Document** in PLAN.md with TODO.md checklist
+5. **Document** in TASKS.md with TODO.md checklist
 
 ### `/test` (Comprehensive Testing)
 
@@ -354,7 +354,7 @@ cargo fmt --check && cargo clippy -- -D warnings && cargo test
 
 ### `/work` (Execution Loop)
 
-1. Read TODO.md and PLAN.md
+1. Read TODO.md and TASKS.md
 2. Write iteration goals to WORK.md
 3. **Write tests first**
 4. Implement incrementally

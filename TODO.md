@@ -6,7 +6,7 @@ made by FontLab https://www.fontlab.com/
 
 ## Phase -1 – Housekeeping
 
-- [x] Create `PLAN.md` to capture scope, phases, and reuse decisions
+- [x] Create `TASKS.md` to capture scope, phases, and reuse decisions
 - [x] Create `WORK.md` with a simple iteration log (date, goal, tests run)
 - [x] Create `CHANGELOG.md` seeded with initial planning entry (v0.0.0, not released)
 
@@ -16,7 +16,7 @@ made by FontLab https://www.fontlab.com/
 - [x] Inventory and analyze @./linked/fontgrep/ and @./linked/fontgrepc/ for potential reuse instead of reimplementing logic
 - [x] Inventory and analyze @./linked/fontations/ for potential reuse instead of reimplementing logic
 - [x] Inventory and analyze @./linked/fontlift/ for potential reuse instead of reimplementing logic
-- [x] Capture findings + tech choices in `PLAN.md` for typg 
+- [x] Capture findings + tech choices in `TASKS.md` for typg 
 - [x] Define success metrics (latency per query, supported filters, CLI parity with fontgrep/fontgrepc)
 
 ## Phase 1 – Source Analysis & Specification

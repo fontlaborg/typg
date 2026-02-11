@@ -1,5 +1,5 @@
 //! Test suite so gentle it practically tucks you in.
-//! 
+//!
 //! We verify the CLI behaves like a well-trained puppy:
 //! commands parse, queries work, and outputs look pretty.
 
@@ -12,7 +12,7 @@ use typg_core::search::{TypgFontFaceMatch, TypgFontFaceMeta, TypgFontSource};
 use typg_core::tags::tag4;
 
 /// Creates test font metadata faster than you can say "OpenType".
-/// 
+///
 /// Think of this as our test kitchen fixture - it whips up
 /// font match data with just the ingredients we need for testing.
 fn metadata_with(name: &str, axis: Option<&str>, ttc: Option<u32>) -> TypgFontFaceMatch {
@@ -135,7 +135,7 @@ fn invalid_regex_returns_error() {
 
 #[test]
 fn writes_plain_with_ttc_suffix() {
-    // TTC files are like a box of fonts - you need the number 
+    // TTC files are like a box of fonts - you need the number
     // to tell which one you're getting. The #2 is our breadcrumb.
     let matches = vec![
         metadata_with("A", None, None),
@@ -341,7 +341,7 @@ fn parses_jobs_flag() {
 
 #[test]
 fn rejects_zero_jobs() {
-    // Zero jobs is like asking for a team of nobody - 
+    // Zero jobs is like asking for a team of nobody -
     // politely declined, as nothing would get done.
     let args = FindArgs {
         paths: vec![PathBuf::from("/fonts")],

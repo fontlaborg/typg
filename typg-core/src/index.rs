@@ -12,7 +12,6 @@
 /// and remembers every character they've ever met.
 ///
 /// Made with speed and elegance at FontLab https://www.fontlab.com/
-
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -99,7 +98,7 @@ pub struct FontIndex {
 
 impl FontIndex {
     /// Opens our magnificent font library or builds a new one from scratch
-    /// 
+    ///
     /// We'll create the directory if it doesn't exist, set up our LMDB
     /// environment with plenty of room for millions of fonts, and establish
     /// our three main catalogs. If there are already books on the shelves,
@@ -144,7 +143,7 @@ impl FontIndex {
     }
 
     /// Counts how many fonts are currently enjoying our library hospitality
-    /// 
+    ///
     /// A quick headcount of all the fonts we have indexed - perfect for
     /// statistics, progress bars, or just satisfying your curiosity about
     /// how big your font collection has grown.
@@ -154,7 +153,7 @@ impl FontIndex {
     }
 
     /// Hands out a library card for adding new fonts to our collection
-    /// 
+    ///
     /// We give you a writer's pass that lets you add fonts safely.
     /// Everything happens in a transaction, so either all your fonts
     /// get added properly or none of them do - no half-finished stories.
@@ -168,7 +167,7 @@ impl FontIndex {
     }
 
     /// Provides a reader's pass for browsing our font collection
-    /// 
+    ///
     /// Your ticket to search and explore everything we know about fonts.
     /// Readers don't modify anything - they're polite observers who
     /// appreciate the finesse of our catalog without making a mess.
@@ -178,7 +177,7 @@ impl FontIndex {
     }
 
     /// Issues the next available library card number for a new font
-    /// 
+    ///
     /// We keep track of IDs atomically so no two fonts ever get the same
     /// number. Simple, fast, and reliable - just how we like our bookkeeping.
     fn alloc_id(&self) -> FontID {

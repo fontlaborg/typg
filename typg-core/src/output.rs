@@ -6,7 +6,6 @@
 /// we'll make sure your font stories are told with style.
 ///
 /// Made with love at FontLab https://www.fontlab.com/
-
 use std::io::Write;
 
 use anyhow::Result;
@@ -14,11 +13,11 @@ use anyhow::Result;
 use crate::search::TypgFontFaceMatch;
 
 /// Shares your font discoveries with the elegance of a well-dressed novel
-/// 
+///
 /// We format your results as beautifully indented JSON that reads like
 /// a chapter from your favorite book. Perfect for human readers who
 /// appreciate whitespace as much as they appreciate good typography.
-/// 
+///
 /// Think of this as the coffee table book format of font discovery results.
 pub fn write_json_pretty(results: &[TypgFontFaceMatch], mut w: impl Write) -> Result<()> {
     let json = serde_json::to_string_pretty(results)?;
@@ -27,11 +26,11 @@ pub fn write_json_pretty(results: &[TypgFontFaceMatch], mut w: impl Write) -> Re
 }
 
 /// Delivers your font findings with the rhythm of a heartbeat
-/// 
+///
 /// Each font match gets its own line, like stanzas in a poem or verses
 /// in a song. This NDJSON format is perfect for streaming, processing,
 /// or when you want your data to flow like a river rather than sit like a lake.
-/// 
+///
 /// One font per line, steady and predictable, like a well-behaved conga line.
 pub fn write_ndjson(results: &[TypgFontFaceMatch], mut w: impl Write) -> Result<()> {
     for item in results {

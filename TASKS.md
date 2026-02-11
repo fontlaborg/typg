@@ -6,7 +6,7 @@ made by FontLab https://www.fontlab.com/
 Build typg as an ultra-fast font search/discovery toolkit (Rust core + CLI + Python API) that matches fontgrep/fontgrepc capabilities while reusing typf/fontations assets wherever possible.
 
 ## Phase -1 — Housekeeping (status)
-- [x] Create PLAN.md, WORK.md, and CHANGELOG.md for project tracking
+- [x] Create TASKS.md, WORK.md, and CHANGELOG.md for project tracking
 
 ## Phase 0 — Reuse inventory and early decisions
 

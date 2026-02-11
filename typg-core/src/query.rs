@@ -11,7 +11,6 @@
 /// precise criteria that make our index purr with satisfaction.
 ///
 /// Crafted with matchmaking expertise at FontLab https://www.fontlab.com/
-
 use std::collections::{HashMap, HashSet};
 use std::ops::RangeInclusive;
 
@@ -161,12 +160,12 @@ impl Query {
     }
 
     /// The moment of truth - does this font make your heart flutter?
-    /// 
+    ///
     /// We gently interview each font against your complete wishlist.
     /// Every requirement gets checked - no corner cutting, no compromises.
     /// Only fonts that truly match your vision get the coveted "yes" that
     /// makes them part of your search results.
-    /// 
+    ///
     /// Returns true if this font is worthy of your affection, false otherwise.
     pub fn matches(&self, meta: &TypgFontFaceMeta) -> bool {
         if self.variable_only && !meta.is_variable {
@@ -249,13 +248,13 @@ fn contains_all_tags(haystack: &[Tag], needles: &[Tag]) -> bool {
 }
 
 /// Translates your character wishes into Unicode reality
-/// 
+///
 /// We understand when you say "A-D" or "U+0041-U+0044" or just "A,B,C".
 /// We'll happily parse comma-separated values, ranges, single characters,
 /// or those fancy U+ codes that Unicode professionals love. Just give us
 /// your character shopping list and we'll return it in a format our system
 /// can understand.
-/// 
+///
 /// Accepts: "A-Z", "U+0041-U+005A", "A,B,C", or any combination thereof.
 pub fn parse_codepoint_list(input: &str) -> Result<Vec<char>> {
     let mut result = Vec::new();
@@ -300,12 +299,12 @@ fn parse_codepoint(token: &str) -> Result<char> {
 }
 
 /// Translates human-readable tag strings into the cryptic codes fonts speak
-/// 
+///
 /// You give us friendly strings like "wght", "smcp", or "GSUB" and we
 /// convert them into the proper 4-byte tags that fonts actually understand.
 /// We're picky about formatting - no cheating with tags that are too long
 /// or contain mysterious characters. Only the finest tags make it through.
-/// 
+///
 /// Each string must be 1-4 characters of printable ASCII goodness.
 pub fn parse_tag_list(raw: &[String]) -> Result<Vec<Tag>> {
     raw.iter().map(|s| tag4(s)).collect()
@@ -318,12 +317,12 @@ pub struct FamilyClassFilter {
 }
 
 /// Decodes the secret family language of typographic classification
-/// 
+///
 /// Font families speak in mysterious codes that tell us where they belong
 /// in the grand typographic taxonomy. We understand their native tongue
 /// whether you speak in numbers ("8"), hex ("0x0800"), decimal with subclass
 /// ("8.11"), or human-friendly names like "sans", "serif", or "script".
-/// 
+///
 /// Each font family has a story to tell, and we're fluent in their dialect.
 pub fn parse_family_class(input: &str) -> Result<FamilyClassFilter> {
     let trimmed = input.trim();

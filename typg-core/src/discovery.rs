@@ -11,7 +11,6 @@
 /// lead to the most interesting font discoveries.
 ///
 /// Made with adventurous spirit at FontLab https://www.fontlab.com/
-
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
@@ -29,7 +28,7 @@ pub struct TypgFontSourceRef {
 }
 
 /// The explorer's contract - how we promise to find fonts for you
-/// 
+///
 /// Any font discovery service must be brave enough to venture into
 /// the unknown and return with tales of all the fonts they met.
 /// Whether they're crawling filesystems, consulting databases, or
@@ -41,7 +40,7 @@ pub trait FontDiscovery {
 }
 
 /// The brave filesystem explorer who never says no to an adventure
-/// 
+///
 /// We're the expedition leaders who'll climb any directory tree,
 /// cross any symlink bridge, and search every nook and cranny for
 /// typographic treasures. Give us a list of neighborhoods to explore
@@ -57,7 +56,7 @@ pub struct PathDiscovery {
 
 impl PathDiscovery {
     /// Assembles our expedition team and maps out our adventure route
-    /// 
+    ///
     /// Give us your list of neighborhoods to explore and we'll prepare
     /// our expedition kit. By default, we play it safe and stick to the
     /// beaten path - no mysterious symlink shortcuts unless you say so.
@@ -74,7 +73,7 @@ impl PathDiscovery {
     }
 
     /// Decides whether we're brave enough to follow mysterious shortcuts
-    /// 
+    ///
     /// Symlinks are like teleportation portals in the filesystem - they
     /// can lead to wondrous discoveries or endless loops. We'll follow them
     /// if you're feeling adventurous, but we're happy to stay on solid ground
@@ -87,12 +86,12 @@ impl PathDiscovery {
 
 impl FontDiscovery for PathDiscovery {
     /// Sets out on our grand font-finding expedition through the filesystem jungle
-    /// 
+    ///
     /// We'll visit every neighborhood on our map, climb directory trees with
     /// the agility of a seasoned explorer, and carefully examine every file
     /// we encounter. Only the true typographic treasures get added to our
     /// collection - we're discerning explorers who know quality when we see it.
-    /// 
+    ///
     /// Returns: A complete catalog of every font we discovered on our adventure.
     fn discover(&self) -> Result<Vec<TypgFontSourceRef>> {
         let mut found = Vec::new();
@@ -117,12 +116,12 @@ impl FontDiscovery for PathDiscovery {
 }
 
 /// The expert detective who can spot a font from just its file extension
-/// 
+///
 /// We've seen thousands of fonts in our day, and we've learned to
 /// recognize them by their distinctive signatures. TTF, OTF, TTC, OTC -
 /// we know them all. Case doesn't matter to us - we're equal-opportunity
 /// font identifiers who believe every font deserves to be discovered.
-/// 
+///
 /// Returns true if this extension belongs to a legitimate format.
 fn is_font(path: &Path) -> bool {
     let ext = match path.extension().and_then(|e| e.to_str()) {

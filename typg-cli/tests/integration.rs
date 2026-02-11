@@ -1,12 +1,11 @@
 /// Integration tests for typg-cli's font discovery adventures.
-/// 
+///
 /// Our CLI tool wanders through font collections, finds what you're looking for,
 /// and keeps track of its treasures in caches. These tests make sure it doesn't
 /// get lost along the way.
-/// 
+///
 /// We test the find command and its cache sidekicks, ensuring fonts are discovered
 /// by script, name, and features. No font is left behind!
-
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -16,7 +15,7 @@ use serde_json::Value;
 use tempfile::tempdir;
 
 /// Hunts for our test fonts directory like a detective following clues.
-/// 
+///
 /// First checks an environment variable (TYPF_TEST_FONTS) for a custom path,
 /// then explores the usual suspects where test fonts might be hiding.
 /// Returns None when the fonts have gone missing - that's how we skip tests
@@ -54,7 +53,7 @@ fn fonts_dir() -> Option<PathBuf> {
 }
 
 /// Arabic script discovery: our tool should find exactly one Arabic font.
-/// 
+///
 /// When we ask for Arabic script support, the font finder returns NotoNaskhArabic.
 /// This test makes sure the script detection works and we get the right file.
 /// One font, one perfect match for Arabic text rendering.
@@ -84,7 +83,7 @@ fn find_scripts_arab_outputs_expected_font() {
 }
 
 /// Counting fonts: don't show me the faces, just the numbers.
-/// 
+///
 /// Latin fonts are everywhere, but exactly how many? With --count flag,
 /// our tool whispers back a single number instead of listing every path.
 /// Perfect for scripts that need to know scale without the verbosity.
@@ -113,7 +112,7 @@ fn find_count_outputs_number() {
 }
 
 /// Variable fonts in JSON format, with a single-threaded twist.
-/// 
+///
 /// Variable fonts are the shape-shifters of typography. This test finds them
 /// and returns structured JSON data, but limits processing to one job (--jobs 1)
 /// to ensure consistent ordering and thread safety in test environments.
@@ -154,7 +153,7 @@ fn find_variable_json_respects_jobs_flag() {
 }
 
 /// Clean paths only, no color escape sequences allowed.
-/// 
+///
 /// Even when we force color mode (--color always), the --paths output
 /// should remain pristine and ANSI-free. Scripts parsing font paths need
 /// predictable plain text, no hidden control characters messing with their day.
@@ -187,7 +186,7 @@ fn find_paths_output_is_ansi_free_even_with_color_always() {
 }
 
 /// Name pattern matching: searching for "Noto Sans" finds the right font.
-/// 
+///
 /// The --name flag dives into font name tables, not just filenames.
 /// It should match "Noto Sans" against the family name stored in the font,
 /// returning NotoSans-Regular.ttf in the JSON results. This tests our regex
@@ -224,7 +223,7 @@ fn find_name_regex_matches_family_name() {
 }
 
 /// The full cache lifecycle: add fonts, find them, then clean house.
-/// 
+///
 /// This test orchestrates a complete cache performance: we copy fonts to a temporary
 /// directory, add them to JSON cache storage, verify they're searchable, remove one,
 /// then run clean to purge the missing entry. It's like a font library with good
@@ -332,7 +331,7 @@ fn cache_add_find_and_clean_cycle() {
 }
 
 /// Cache counting: how many Latin fonts do we have cached?
-/// 
+///
 /// First we populate a cache with fonts, then ask it to count the Latin ones.
 /// The cached find command respects the --count flag just like regular find,
 /// returning a single number instead of full paths. It's fast, efficient,
@@ -376,7 +375,7 @@ fn cache_find_count_outputs_number() {
 }
 
 /// Cache intelligence: what's inside our font cache?
-/// 
+///
 /// The cache info command acts like a librarian reporting on the collection.
 /// It tells us if the cache exists, how many font entries are stored,
 /// and what storage backend we're using. This test verifies our cache
@@ -421,7 +420,7 @@ fn cache_info_shows_stats() {
 }
 
 /// Silent but productive: quiet mode keeps chatter to a minimum.
-/// 
+///
 /// The --quiet flag tells our cache to work without announcing its progress.
 /// No "cached X font faces" messages to stderr, but the cache still gets built.
 /// It's the introvert of commands - does the work without making a scene.
@@ -459,7 +458,7 @@ fn cache_add_quiet_suppresses_stderr() {
 }
 
 /// High-performance indexing: LMDB stats and the fast lane.
-/// 
+///
 /// When hpindex feature is enabled, we get LMDB backing store instead of JSON.
 /// This test verifes the high-performance index reports its stats correctly,
 /// identifies as "lmdb" type, and contains actual font entries. LMDB brings
@@ -507,7 +506,7 @@ fn cache_info_index_shows_lmdb_stats() {
 }
 
 /// The full LMDB performance ballet: add, list, find, and filter.
-/// 
+///
 /// This comprehensive test showcases the high-performance index capabilities.
 /// We add fonts to the LMDB-backed index, list them all, find by script,
 /// and filter for variable fonts. It's like a grand tour of our fastest

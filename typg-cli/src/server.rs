@@ -407,8 +407,8 @@ mod tests {
         use std::time::SystemTime;
         use typg_core::discovery::{FontDiscovery, PathDiscovery};
         use typg_core::index::FontIndex;
-        use typg_core::search::{search, SearchOptions};
         use typg_core::query::Query;
+        use typg_core::search::{search, SearchOptions};
 
         let fonts = match fonts_dir() {
             Some(dir) => dir,
@@ -423,7 +423,12 @@ mod tests {
         let discovery = PathDiscovery::new([fonts.clone()]);
         let font_sources = discovery.discover().unwrap();
 
-        let all_matches = search(&[fonts.clone()], &Query::default(), &SearchOptions::default()).unwrap();
+        let all_matches = search(
+            &[fonts.clone()],
+            &Query::default(),
+            &SearchOptions::default(),
+        )
+        .unwrap();
 
         let index = FontIndex::open(&index_path).unwrap();
         let mut writer = index.writer().unwrap();
@@ -470,6 +475,9 @@ mod tests {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let parsed: SearchResponse = serde_json::from_slice(&body).expect("parse response");
         let paths = parsed.paths.expect("paths response present");
-        assert!(!paths.is_empty(), "expected at least one result from index search");
+        assert!(
+            !paths.is_empty(),
+            "expected at least one result from index search"
+        );
     }
 }

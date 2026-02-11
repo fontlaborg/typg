@@ -42,7 +42,7 @@
 /// // Where do we look for our font friends?
 /// let font_dirs = vec![
 ///     PathBuf::from("/System/Library/Fonts"),
-///     PathBuf::from("/Library/Fonts"), 
+///     PathBuf::from("/Library/Fonts"),
 ///     PathBuf::from("~/fonts"),
 /// ];
 ///
@@ -51,7 +51,7 @@
 ///
 /// println!("Found {} fonts that caught our eye:", results.len());
 /// for font in results {
-///     println!("  {} ({})", 
+///     println!("  {} ({})",
 ///         font.metadata.names.first().unwrap_or(&"<mysterious>".to_string()),
 ///         if font.metadata.is_variable { "adaptable" } else { "steady" }
 ///     );
@@ -77,7 +77,7 @@
 /// ## Playground Rules
 ///
 /// Built on cross-platform font playground equipment (read-fonts, skrifa)
-/// and plays nicely with all major operating systems. No proprietary 
+/// and plays nicely with all major operating systems. No proprietary
 /// gatekeeping - just pure metadata magic that works everywhere.
 ///
 /// ## Making Friends
@@ -90,7 +90,6 @@
 /// ---
 ///
 /// Crafted with care at FontLab https://www.fontlab.com/
-
 pub mod discovery;
 #[cfg(feature = "hpindex")]
 pub mod index;

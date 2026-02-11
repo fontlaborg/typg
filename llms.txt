@@ -1,4 +1,4 @@
-Project Structure:
+<documents><toc>
 📁 typg
 ├── 📁 .github
 │   └── 📁 workflows
@@ -12,70 +12,6 @@ Project Structure:
 │   │       ├── 📁 deps
 │   │       ├── 📁 examples
 │   │       └── 📁 incremental
-│   ├── 📁 debug
-│   │   ├── 📁 deps
-│   │   ├── 📁 examples
-│   │   └── 📁 incremental
-│   │       ├── 📁 build_script_build-18xj97pwi5lu1
-│   │       │   └── 📁 s-hdvit6c3uy-1bd22oo-bcoazc5xqq8heumzpl3x3wq56
-│   │       ├── 📁 cached_search-0ht9pnu08p418
-│   │       │   └── 📁 s-hdviv38d0f-1wyj8pz-c8q11us7aotrwfy5y9mw5p4wr
-│   │       ├── 📁 discovery-39xi8u1ecrado
-│   │       │   └── 📁 s-hdviv38epy-1hl3ps2-7aajx19sg529k3z04cg4z7f3d
-│   │       ├── 📁 integration-2wix188oj5l4g
-│   │       │   └── 📁 s-hdv1p8uhzf-1hlzmjk-1e7pp7c4dd0u112ohnkcvamu2
-│   │       ├── 📁 integration-3ppa727cq5cnd
-│   │       │   └── 📁 s-hdviv3gput-141ixwc-bi5lsamtcq6bkz0eojandgqze
-│   │       ├── 📁 metadata_names-1j1i257hm72y0
-│   │       │   └── 📁 s-hdviv38c1m-1c62e2s-7euiznc6axxl3wby4pgbpd0mi
-│   │       ├── 📁 output-37yjw1nh72a6o
-│   │       │   └── 📁 s-hdviv38eci-0e2flzo-72nhqgxdvmfaefy5hb0txd3h5
-│   │       ├── 📁 query_parser-01x3wtz08qynp
-│   │       │   └── 📁 s-hdviv388rk-0hwmxzy-8lkoeq064s6wf8vlw8qao4fec
-│   │       ├── 📁 search_filters-3e9s3j9y1t5k8
-│   │       │   └── 📁 s-hdviv38clx-0ath3yn-4kot4dohnqxr7ge6o4sphfr0f
-│   │       ├── 📁 typg-0h24n7yxz5x2m
-│   │       │   └── 📁 s-hdv1tai4py-02dyvcn-1zqq8501zf9sj17wic21hgh60
-│   │       ├── 📁 typg-21iraa7mc9kfm
-│   │       │   └── 📁 s-hdviv3gplm-0qjhrui-f5fuw0marez5a1y4jjbcn79h4
-│   │       ├── 📁 typg-2t4gec7g8xrjq
-│   │       │   └── 📁 s-hdv1p8uhkc-180a368-2cha617jxaoy12ucyc2vo4uo2
-│   │       ├── 📁 typg-2v1e6a09mofbe
-│   │       │   └── 📁 s-hdv1p8uhn4-02e6df3-91kvozqcrl6jzgmoae79x5w30
-│   │       ├── 📁 typg-325xnjpctolnv
-│   │       │   └── 📁 s-hdviv3gpln-1w2ybd4-4u3dxufl9n1i00fkb4qhnsk3t
-│   │       ├── 📁 typg_cli-0gyx6dtlpm6sk
-│   │       │   └── 📁 s-hdv1p8bf8a-17kbxv4-8d1natpyo5bbomp51vpuiopur
-│   │       ├── 📁 typg_cli-2dm1c44pbgvln
-│   │       │   └── 📁 s-hdviv36obh-1no9if4-bst59gkfz27og96lv6lzd4egb
-│   │       ├── 📁 typg_cli-2oizlikw4bhjf
-│   │       │   └── 📁 s-hdviv38e0d-1ft5qr3-89bh782uosz1bz9nha5y6dp1n
-│   │       ├── 📁 typg_cli-2p1utkdp0hnev
-│   │       │   └── 📁 s-hdv1tadpr5-0f2n2sy-1e8b6kyqjfdigqiujxw3kn6xv
-│   │       ├── 📁 typg_cli-3hdzzjkweuwxa
-│   │       │   └── 📁 s-hdv1p88y0p-1iy74ut-5rvvpyao3ay6mhcy5atfiv3oo
-│   │       ├── 📁 typg_core-06fj3acqzzhao
-│   │       │   └── 📁 s-hdvitdtvt9-0qg4hkn-45bx9tfu73zeg2gx2cgrspw51
-│   │       ├── 📁 typg_core-0mwnwa85ownwf
-│   │       │   └── 📁 s-hdviv34d6e-1qkho14-ckb5w3ktl2yjztvp4p18sne1m
-│   │       ├── 📁 typg_core-1k1htx0fpfeev
-│   │       │   └── 📁 s-hdvit7h8uc-13fghle-75o9twexqicbhgd2m9yti05xw
-│   │       ├── 📁 typg_core-202rocnikijhd
-│   │       │   └── 📁 s-hdviv34d6e-0u9yfc1-82uhlrm5k8zib0nat3ezwi02n
-│   │       ├── 📁 typg_core-24a8fd653fvv6
-│   │       │   └── 📁 s-hdv1p3zvbr-1p2r4cf-6pc0a82ze7er945iclbil0i8m
-│   │       ├── 📁 typg_core-2ih0gyq2tg8n1
-│   │       │   └── 📁 s-hdv1p81nky-1gqw0ml-ac9i9xmypvu3usamcirduhm9q
-│   │       ├── 📁 typg_python-0aqma4pt8dghe
-│   │       │   └── 📁 s-hdvit9ahu8-05ztri7-9unprnp9ein6zrzkxst2844aq
-│   │       ├── 📁 typg_python-1hvecc1zbydqk
-│   │       │   └── 📁 s-hdvitf7jvm-132e99o-epeis20xdy245mdohm75kyy1u
-│   │       ├── 📁 typg_python-1ya5zqv8q8zfu
-│   │       │   └── 📁 s-hdviv38cej-07skfdc-9kr6p5u6x4jhqibg0jfyjgfhz
-│   │       ├── 📁 typg_python-2htt6wktn6e1o
-│   │       │   └── 📁 s-hdvitf7jvl-15hz2p8-9vu4hvs6x3ulogietlsytvhgp
-│   │       └── 📁 typg_python-31muuauyps2sy
-│   │           └── 📁 s-hdviv38dcm-16pu70d-285dhlyc9sbgte8eg0096aqbt
 │   ├── 📁 maturin
 │   ├── 📁 release
 │   │   ├── 📁 deps
@@ -132,14 +68,16 @@ Project Structure:
 ├── 📄 Cargo.toml
 ├── 📄 CLAUDE.md
 ├── 📄 LICENSE
-├── 📄 PLAN.md
 ├── 📄 publish.sh
 ├── 📄 README.md
+├── 📄 TASKS.md
 └── 📄 TODO.md
 
 
-## .github/workflows/ci.yml
-```yaml
+</toc>
+<document index="1">
+<source>.github/workflows/ci.yml</source>
+<document_content>
 # made by FontLab https://www.fontlab.com/
 # CI layout mirrors typf/twasitors: lint gate, cross-platform tests, plus Python bindings check.
 name: CI
@@ -222,10 +160,12 @@ jobs:
           pytest typg-python/tests
       - name: Rust tests for bindings
         run: cargo test -p typg-python --tests
-```
+</document_content>
+</document>
 
-## .github/workflows/release.yml
-```yaml
+<document index="2">
+<source>.github/workflows/release.yml</source>
+<document_content>
 # GitHub release automation for typg (made by FontLab https://www.fontlab.com/)
 name: Release
 
@@ -382,10 +322,12 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+</document_content>
+</document>
 
-## .gitignore
-```
+<document index="3">
+<source>.gitignore</source>
+<document_content>
 # Generated by Cargo
 # will have compiled files and executables
 debug
@@ -420,10 +362,12 @@ external/
 build/
 dist/
 typg-python/target/
-```
+</document_content>
+</document>
 
-## ARCHITECTURE.md
-```markdown
+<document index="4">
+<source>ARCHITECTURE.md</source>
+<document_content>
 # typg Architecture
 made by FontLab https://www.fontlab.com/
 
@@ -459,10 +403,12 @@ typg is a three-crate workspace that keeps parsing/rendering logic in the Rust c
 - Property tests for tag/codepoint parsers in `typg-core`.
 - Snapshot tests for CLI help/output, shared golden files with Python bindings.
 - Criterion benches (e.g., codepoint parsing) tracked in `WORK.md` alongside known limitations.
-```
+</document_content>
+</document>
 
-## CLAUDE.md
-````markdown
+<document index="5">
+<source>CLAUDE.md</source>
+<document_content>
 # typg Engineering Guide
 made by FontLab https://www.fontlab.com/
 
@@ -472,7 +418,7 @@ Objective: build typg — an ultra-fast font search/discovery toolkit with a Rus
 
 **For every task, follow this baseline:**
 
-1. [ ] Read `README.md`, `PLAN.md`, `TODO.md`, `WORK.md` to understand context
+1. [ ] Read `README.md`, `TASKS.md`, `TODO.md`, `WORK.md` to understand context
 2. [ ] Apply Chain-of-Thought: "Let me think step by step..."
 3. [ ] Search when <90% confident (codebase, references, web)
 4. [ ] Check if this problem has been solved before (packages > custom code)
@@ -584,7 +530,7 @@ After drafting any solution:
 
 ### 3.1 Before Starting (MUST)
 
-1. Read `README.md`, `WORK.md`, `CHANGELOG.md`, `PLAN.md`, `TODO.md`
+1. Read `README.md`, `WORK.md`, `CHANGELOG.md`, `TASKS.md`, `TODO.md`
 2. Run existing tests to understand current state
 3. Apply Enhanced CoT (Analyze → Abstract → Execute)
 4. Search for existing solutions before writing code
@@ -779,8 +725,8 @@ uvx ruff check --fix . && uvx ruff format . && pytest
 
 - **README.md** – Purpose and quick start (<200 lines)
 - **CHANGELOG.md** – Cumulative release notes
-- **PLAN.md** – Detailed future goals and architecture
-- **TODO.md** – Flat task list from PLAN.md with status:
+- **TASKS.md** – Detailed future goals and architecture
+- **TODO.md** – Flat task list from TASKS.md with status:
   - `[ ]` Not started
   - `[x]` Completed  
   - `[~]` In progress
@@ -801,7 +747,7 @@ When invoked, MUST:
 2. **Deconstruct** into core requirements and constraints
 3. **Analyze** feasibility and identify packages to use
 4. **Structure** into phases with dependencies
-5. **Document** in PLAN.md with TODO.md checklist
+5. **Document** in TASKS.md with TODO.md checklist
 
 ### `/test` (Comprehensive Testing)
 
@@ -819,7 +765,7 @@ cargo fmt --check && cargo clippy -- -D warnings && cargo test
 
 ### `/work` (Execution Loop)
 
-1. Read TODO.md and PLAN.md
+1. Read TODO.md and TASKS.md
 2. Write iteration goals to WORK.md
 3. **Write tests first**
 4. Implement incrementally
@@ -936,10 +882,12 @@ When writing documentation or commentary:
 ## Gemini Added Memories
 - I must always ask for confirmation before running any command that deletes files. The user must explicitly approve the deletion. I should explain what the command does and which files will be deleted.
 All files, usage notes, GUIs, CLI helps, documentation etc. should carry a mention `made by FontLab https://www.fontlab.com/` where it makes sense.
-````
+</document_content>
+</document>
 
-## Cargo.toml
-```toml
+<document index="6">
+<source>Cargo.toml</source>
+<document_content>
 [workspace]
 members = ["typg-core", "typg-cli", "typg-python"]
 resolver = "2"
@@ -952,10 +900,12 @@ authors = ["FontLab"]
 
 [workspace.metadata]
 description = "typg workspace — ultra-fast font search/discovery toolkit"
-```
+</document_content>
+</document>
 
-## LICENSE
-```
+<document index="7">
+<source>LICENSE</source>
+<document_content>
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -1157,10 +1107,136 @@ description = "typg workspace — ultra-fast font search/discovery toolkit"
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+</document_content>
+</document>
+
+<document index="8">
+<source>README.md</source>
+<document_content>
+# typg
+made by FontLab https://www.fontlab.com/
+
+Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typg tracks fontgrep/fontgrepc semantics (live scan + JSON cache subcommands) while reusing fontations + typf assets to stay lean.
+
+## Components
+- `typg-core`: search engine built on `read-fonts`/`skrifa` (fontations) with cached-filter hooks.
+- `typg-cli`: clap-based CLI that mirrors fontgrep’s `find` flags and output modes (plain/columns/JSON/NDJSON).
+- `typg-python`: PyO3 bindings plus a Fire/Typer CLI shim (`typgpy`) so Python users get the same surface.
+
+## Status
+- Live scans work: axes/features/scripts/tables/name/regex/codepoints/text filters plus STDIN/system font discovery.
+- Cache path now ships: `typg cache add/list/find/clean` writes a JSON cache file; `--jobs` controls ingest/search threads.
+- OS/2 weight, width, and family-class filters now ship across Rust/Python/HTTP surfaces.
+- Docs/spec cover planned parity (`docs/spec.md`); architecture notes live in `ARCHITECTURE.md`.
+
+## Install (source, today)
+```bash
+# Rust CLI
+cargo install --path typg-cli
+
+# Python bindings/CLI (uv-based)
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install maturin
+maturin develop --manifest-path typg-python/Cargo.toml --locked
 ```
 
-## PLAN.md
-````markdown
+## Usage
+### CLI (`typg`)
+- Live scan a directory for small caps + Latin support: `typg find -f smcp -s latn ~/Fonts`
+- Accept STDIN paths: `fd .ttf ~/Fonts | typg find --stdin-paths --ndjson`
+- Include system font roots: `typg find --system-fonts --columns`
+- Control worker count when scanning: `typg find --jobs 4 --variable ~/Fonts` (defaults to CPU count)
+- Filter OS/2 classifications: `typg find --weight 300-500 --width 5 --family-class sans ~/Fonts`
+- JSON output: add `--json` (array) or `--ndjson` (one match per line). Columns/plain auto-colorize unless `--color never`.
+- Paths-only output for piping into typf/fontlift/testypf: `typg find --paths ~/Fonts` (also works with `cache list/find`).
+- Path overrides for system fonts: set `TYPOG_SYSTEM_FONT_DIRS="/opt/fonts:/tmp/fonts"`.
+- Build and query a cache (JSON file): `typg cache add --cache-path ~/.cache/typg/cache.json ~/Fonts` then `typg cache find --cache-path ~/.cache/typg/cache.json --scripts latn --json`; use `typg cache clean` to drop missing fonts and `typg cache list --json` to inspect entries. Cache path defaults to `~/.cache/typg/cache.json` (or `LOCALAPPDATA` on Windows) and respects `TYPOG_CACHE_PATH`.
+- Cache info: `typg cache info` shows cache/index statistics (path, type, font count, size). Supports `--json` and `--index`.
+- Count-only queries: `typg cache find --scripts latn --count` outputs just the number of matching fonts (useful for scripting).
+- Quiet mode: `typg -q cache add ~/Fonts` suppresses informational stderr messages.
+- **High-performance index** (optional `hpindex` feature): For 100k+ font collections, use LMDB-backed index instead of JSON cache. Build with `cargo build --features hpindex`, then use `--index` flag:
+  - Ingest: `typg cache add --index ~/Fonts` (indexes to `~/.cache/typg/index/` by default).
+  - Query: `typg cache find --index --scripts latn --features smcp` (O(K) tag intersection via Roaring Bitmaps).
+  - List: `typg cache list --index` (lists all indexed fonts).
+  - Clean: `typg cache clean --index` (removes entries for missing files).
+  - Custom location: `typg cache add --index --index-path /path/to/index ~/Fonts`. Respects `TYPOG_INDEX_PATH` env var.
+- Remote querying: `typg serve --bind 127.0.0.1:8765` exposes `/health` and `/search` (POST JSON with paths/filters, set `paths_only:true` to get a newline-ready list). With hpindex feature, `/search` also accepts `use_index:true` and optional `index_path` to query the LMDB index instead of live scanning.
+
+### Python (`typg` / `typgpy`)
+```python
+from typg import find, find_paths
+
+matches = find(paths=["~/Fonts"], scripts=["latn"], features=["smcp"], variable=True)
+for m in matches:
+    print(m["path"], m["names"][0])
+
+paths_only = find_paths(paths=["~/Fonts"], scripts=["latn"])
+print("first path:", paths_only[0])
+
+weighted = find(paths=["~/Fonts"], weight="400-700", width="5")
+print("weighted matches:", len(weighted))
+
+family = find(paths=["~/Fonts"], family_class="sans")
+print("sans-serif matches:", len(family))
+
+# Indexed search (requires hpindex feature in build)
+try:
+    from typg import find_indexed, list_indexed, count_indexed
+    matches = find_indexed(index_path="~/.cache/typg/index", scripts=["latn"])
+    count = count_indexed(index_path="~/.cache/typg/index")
+    all_fonts = list_indexed(index_path="~/.cache/typg/index")
+except ImportError:
+    print("hpindex feature not enabled in build")
+```
+
+CLI parity from Python: `typgpy find --paths ~/Fonts --scripts latn --features smcp --variable --paths_only True`.
+
+### Rust library (`typg-core`)
+```rust
+use std::path::PathBuf;
+use typg_core::query::Query;
+use typg_core::search::{search, SearchOptions};
+use typg_core::tags::tag4;
+
+let paths = vec![PathBuf::from("~/Fonts")];
+let query = Query::new().with_features(vec![tag4("smcp").unwrap()]);
+let matches = search(&paths, &query, &SearchOptions::default())?;
+```
+
+## Migration (fontgrep/fontgrepc)
+- `typg find` mirrors `fontgrep find` flags already shipped (axes/features/scripts/tables/name/regex/codepoints/text, STDIN, system fonts, JSON/NDJSON, columns/plain).
+- Cache subcommands mirror fontgrepc (`add/list/find/clean`) using a JSON cache file; keep using fontgrepc if you need SQLite today.
+- Weight/class/width shorthands are still planned; use explicit tag filters for now.
+- Output layout matches fontgrepc NDJSON; column widths are stable for downstream tooling.
+
+## Build & release
+- macOS local builds: `./build.sh [release|debug]` emits the `typg` Rust CLI and the `typg` Python wheel/`typgpy` CLI (version comes from git tags via hatch-vcs).
+- Manual publishing: `./publish.sh [publish|rust-only|python-only|sync|check]` syncs Cargo crate versions to the current semver git tag, then pushes crates to crates.io and wheels to PyPI when credentials are present.
+- GitHub Actions: `release.yml` triggers on `vN.N.N` tags to build manylinux/macOS/Windows wheels, publish to PyPI, publish crates (`typg-core`, `typg-cli`, `typg-python`) to crates.io, and attach wheels to the GitHub release.
+
+## Migration notes (fontgrep/fontgrepc → typg)
+- Flags mirror fontgrep; see `docs/spec.md` for any divergence.
+- Cache subcommands are available: `typg cache add/list/find/clean` manage a JSON cache file; live scans remain available via `typg find`.
+- NDJSON output matches fontgrepc conventions so log pipelines stay compatible.
+
+## Contributing
+- Keep functions short and prefer deleting over adding.
+- Match fontgrep/fontgrepc semantics unless a deviation is documented in `docs/spec.md`.
+- Add tests (property for parsers, snapshot for CLI) before marking tasks done.
+
+## Project links
+- Plan: `TASKS.md`
+- Tasks: `TODO.md`
+- Spec: `docs/spec.md`
+- Architecture: `ARCHITECTURE.md`
+- Work log: `WORK.md`
+</document_content>
+</document>
+
+<document index="9">
+<source>TASKS.md</source>
+<document_content>
 # typg Plan
 
 made by FontLab https://www.fontlab.com/
@@ -1169,7 +1245,7 @@ made by FontLab https://www.fontlab.com/
 Build typg as an ultra-fast font search/discovery toolkit (Rust core + CLI + Python API) that matches fontgrep/fontgrepc capabilities while reusing typf/fontations assets wherever possible.
 
 ## Phase -1 — Housekeeping (status)
-- [x] Create PLAN.md, WORK.md, and CHANGELOG.md for project tracking
+- [x] Create TASKS.md, WORK.md, and CHANGELOG.md for project tracking
 
 ## Phase 0 — Reuse inventory and early decisions
 
@@ -1311,132 +1387,12 @@ DB_PATH_TO_ID:    PathHash     -> (FontID, mtime)
 ### Future Work
 - [x] Add benchmarks comparing live scan vs Index performance (benches/cache_vs_index.rs)
 - [x] Update Python bindings for indexed search (`find_indexed()`, `list_indexed()`, `count_indexed()`)
-````
+</document_content>
+</document>
 
-## README.md
-````markdown
-# typg
-made by FontLab https://www.fontlab.com/
-
-Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typg tracks fontgrep/fontgrepc semantics (live scan + JSON cache subcommands) while reusing fontations + typf assets to stay lean.
-
-## Components
-- `typg-core`: search engine built on `read-fonts`/`skrifa` (fontations) with cached-filter hooks.
-- `typg-cli`: clap-based CLI that mirrors fontgrep’s `find` flags and output modes (plain/columns/JSON/NDJSON).
-- `typg-python`: PyO3 bindings plus a Fire/Typer CLI shim (`typgpy`) so Python users get the same surface.
-
-## Status
-- Live scans work: axes/features/scripts/tables/name/regex/codepoints/text filters plus STDIN/system font discovery.
-- Cache path now ships: `typg cache add/list/find/clean` writes a JSON cache file; `--jobs` controls ingest/search threads.
-- OS/2 weight, width, and family-class filters now ship across Rust/Python/HTTP surfaces.
-- Docs/spec cover planned parity (`docs/spec.md`); architecture notes live in `ARCHITECTURE.md`.
-
-## Install (source, today)
-```bash
-# Rust CLI
-cargo install --path typg-cli
-
-# Python bindings/CLI (uv-based)
-uv venv --python 3.12
-source .venv/bin/activate
-uv pip install maturin
-maturin develop --manifest-path typg-python/Cargo.toml --locked
-```
-
-## Usage
-### CLI (`typg`)
-- Live scan a directory for small caps + Latin support: `typg find -f smcp -s latn ~/Fonts`
-- Accept STDIN paths: `fd .ttf ~/Fonts | typg find --stdin-paths --ndjson`
-- Include system font roots: `typg find --system-fonts --columns`
-- Control worker count when scanning: `typg find --jobs 4 --variable ~/Fonts` (defaults to CPU count)
-- Filter OS/2 classifications: `typg find --weight 300-500 --width 5 --family-class sans ~/Fonts`
-- JSON output: add `--json` (array) or `--ndjson` (one match per line). Columns/plain auto-colorize unless `--color never`.
-- Paths-only output for piping into typf/fontlift/testypf: `typg find --paths ~/Fonts` (also works with `cache list/find`).
-- Path overrides for system fonts: set `TYPOG_SYSTEM_FONT_DIRS="/opt/fonts:/tmp/fonts"`.
-- Build and query a cache (JSON file): `typg cache add --cache-path ~/.cache/typg/cache.json ~/Fonts` then `typg cache find --cache-path ~/.cache/typg/cache.json --scripts latn --json`; use `typg cache clean` to drop missing fonts and `typg cache list --json` to inspect entries. Cache path defaults to `~/.cache/typg/cache.json` (or `LOCALAPPDATA` on Windows) and respects `TYPOG_CACHE_PATH`.
-- Cache info: `typg cache info` shows cache/index statistics (path, type, font count, size). Supports `--json` and `--index`.
-- Count-only queries: `typg cache find --scripts latn --count` outputs just the number of matching fonts (useful for scripting).
-- Quiet mode: `typg -q cache add ~/Fonts` suppresses informational stderr messages.
-- **High-performance index** (optional `hpindex` feature): For 100k+ font collections, use LMDB-backed index instead of JSON cache. Build with `cargo build --features hpindex`, then use `--index` flag:
-  - Ingest: `typg cache add --index ~/Fonts` (indexes to `~/.cache/typg/index/` by default).
-  - Query: `typg cache find --index --scripts latn --features smcp` (O(K) tag intersection via Roaring Bitmaps).
-  - List: `typg cache list --index` (lists all indexed fonts).
-  - Clean: `typg cache clean --index` (removes entries for missing files).
-  - Custom location: `typg cache add --index --index-path /path/to/index ~/Fonts`. Respects `TYPOG_INDEX_PATH` env var.
-- Remote querying: `typg serve --bind 127.0.0.1:8765` exposes `/health` and `/search` (POST JSON with paths/filters, set `paths_only:true` to get a newline-ready list). With hpindex feature, `/search` also accepts `use_index:true` and optional `index_path` to query the LMDB index instead of live scanning.
-
-### Python (`typg` / `typgpy`)
-```python
-from typg import find, find_paths
-
-matches = find(paths=["~/Fonts"], scripts=["latn"], features=["smcp"], variable=True)
-for m in matches:
-    print(m["path"], m["names"][0])
-
-paths_only = find_paths(paths=["~/Fonts"], scripts=["latn"])
-print("first path:", paths_only[0])
-
-weighted = find(paths=["~/Fonts"], weight="400-700", width="5")
-print("weighted matches:", len(weighted))
-
-family = find(paths=["~/Fonts"], family_class="sans")
-print("sans-serif matches:", len(family))
-
-# Indexed search (requires hpindex feature in build)
-try:
-    from typg import find_indexed, list_indexed, count_indexed
-    matches = find_indexed(index_path="~/.cache/typg/index", scripts=["latn"])
-    count = count_indexed(index_path="~/.cache/typg/index")
-    all_fonts = list_indexed(index_path="~/.cache/typg/index")
-except ImportError:
-    print("hpindex feature not enabled in build")
-```
-
-CLI parity from Python: `typgpy find --paths ~/Fonts --scripts latn --features smcp --variable --paths_only True`.
-
-### Rust library (`typg-core`)
-```rust
-use std::path::PathBuf;
-use typg_core::query::Query;
-use typg_core::search::{search, SearchOptions};
-use typg_core::tags::tag4;
-
-let paths = vec![PathBuf::from("~/Fonts")];
-let query = Query::new().with_features(vec![tag4("smcp").unwrap()]);
-let matches = search(&paths, &query, &SearchOptions::default())?;
-```
-
-## Migration (fontgrep/fontgrepc)
-- `typg find` mirrors `fontgrep find` flags already shipped (axes/features/scripts/tables/name/regex/codepoints/text, STDIN, system fonts, JSON/NDJSON, columns/plain).
-- Cache subcommands mirror fontgrepc (`add/list/find/clean`) using a JSON cache file; keep using fontgrepc if you need SQLite today.
-- Weight/class/width shorthands are still planned; use explicit tag filters for now.
-- Output layout matches fontgrepc NDJSON; column widths are stable for downstream tooling.
-
-## Build & release
-- macOS local builds: `./build.sh [release|debug]` emits the `typg` Rust CLI and the `typg` Python wheel/`typgpy` CLI (version comes from git tags via hatch-vcs).
-- Manual publishing: `./publish.sh [publish|rust-only|python-only|sync|check]` syncs Cargo crate versions to the current semver git tag, then pushes crates to crates.io and wheels to PyPI when credentials are present.
-- GitHub Actions: `release.yml` triggers on `vN.N.N` tags to build manylinux/macOS/Windows wheels, publish to PyPI, publish crates (`typg-core`, `typg-cli`, `typg-python`) to crates.io, and attach wheels to the GitHub release.
-
-## Migration notes (fontgrep/fontgrepc → typg)
-- Flags mirror fontgrep; see `docs/spec.md` for any divergence.
-- Cache subcommands are available: `typg cache add/list/find/clean` manage a JSON cache file; live scans remain available via `typg find`.
-- NDJSON output matches fontgrepc conventions so log pipelines stay compatible.
-
-## Contributing
-- Keep functions short and prefer deleting over adding.
-- Match fontgrep/fontgrepc semantics unless a deviation is documented in `docs/spec.md`.
-- Add tests (property for parsers, snapshot for CLI) before marking tasks done.
-
-## Project links
-- Plan: `PLAN.md`
-- Tasks: `TODO.md`
-- Spec: `docs/spec.md`
-- Architecture: `ARCHITECTURE.md`
-- Work log: `WORK.md`
-````
-
-## TODO.md
-```markdown
+<document index="10">
+<source>TODO.md</source>
+<document_content>
 # typg TODO
 
 made by FontLab https://www.fontlab.com/
@@ -1445,7 +1401,7 @@ made by FontLab https://www.fontlab.com/
 
 ## Phase -1 – Housekeeping
 
-- [x] Create `PLAN.md` to capture scope, phases, and reuse decisions
+- [x] Create `TASKS.md` to capture scope, phases, and reuse decisions
 - [x] Create `WORK.md` with a simple iteration log (date, goal, tests run)
 - [x] Create `CHANGELOG.md` seeded with initial planning entry (v0.0.0, not released)
 
@@ -1455,7 +1411,7 @@ made by FontLab https://www.fontlab.com/
 - [x] Inventory and analyze @./linked/fontgrep/ and @./linked/fontgrepc/ for potential reuse instead of reimplementing logic
 - [x] Inventory and analyze @./linked/fontations/ for potential reuse instead of reimplementing logic
 - [x] Inventory and analyze @./linked/fontlift/ for potential reuse instead of reimplementing logic
-- [x] Capture findings + tech choices in `PLAN.md` for typg 
+- [x] Capture findings + tech choices in `TASKS.md` for typg 
 - [x] Define success metrics (latency per query, supported filters, CLI parity with fontgrep/fontgrepc)
 
 ## Phase 1 – Source Analysis & Specification
@@ -1585,10 +1541,12 @@ made by FontLab https://www.fontlab.com/
 - [ ] Benchmark: index build time on 10k/100k fonts (requires large font collection)
 
 **Implementation Note:** Simplified from original plan by using bincode instead of rkyv (simpler API, sufficient performance) and Roaring Bitmap for cmap instead of Cuckoo Filter (deterministic, no false positives).
-```
+</document_content>
+</document>
 
-## build.sh
-```bash
+<document index="11">
+<source>build.sh</source>
+<document_content>
 #!/bin/bash
 # build.sh - robust build script for typg on macOS
 # made by FontLab https://www.fontlab.com/
@@ -1967,10 +1925,12 @@ case "${1:-}" in
         main
         ;;
 esac
-```
+</document_content>
+</document>
 
-## publish.sh
-```bash
+<document index="12">
+<source>publish.sh</source>
+<document_content>
 #!/bin/bash
 # publish.sh - robust publishing script for typg workspace
 # made by FontLab https://www.fontlab.com/
@@ -2591,10 +2551,12 @@ main() {
 
 # Run main function with all arguments
 main "$@"
-```
+</document_content>
+</document>
 
-## typg-cli/Cargo.toml
-```toml
+<document index="13">
+<source>typg-cli/Cargo.toml</source>
+<document_content>
 [package]
 name = "typg-cli"
 version = "1.0.1"
@@ -2628,7 +2590,8 @@ typg-core = { version = "=1.0.1", path = "../typg-core" }
 http-body-util = "0.1"
 tempfile = "3.10"
 tower = { version = "0.4", features = ["util"] }
-```
+</document_content>
+</document>
 
 # File: /Users/adam/Developer/vcs3/github.fontlaborg/typg/typg-cli/src/lib.rs
 # Language: rust
@@ -2695,8 +2658,9 @@ struct SearchResponse {
 
 
 
-## typg-core/Cargo.toml
-```toml
+<document index="14">
+<source>typg-core/Cargo.toml</source>
+<document_content>
 [package]
 name = "typg-core"
 version = "1.0.1"
@@ -2742,7 +2706,8 @@ criterion = "0.5"
 name = "cache_vs_index"
 harness = false
 required-features = ["hpindex"]
-```
+</document_content>
+</document>
 
 # File: /Users/adam/Developer/vcs3/github.fontlaborg/typg/typg-core/benches/cache_vs_index.rs
 # Language: rust
@@ -2875,8 +2840,9 @@ struct SearchOptions {
 
 
 
-## typg-python/Cargo.toml
-```toml
+<document index="15">
+<source>typg-python/Cargo.toml</source>
+<document_content>
 [package]
 name = "typg-python"
 version = "1.0.1"
@@ -2908,10 +2874,12 @@ indoc = "2.0"
 pyo3 = { version = "0.26", features = ["abi3-py310"] }
 tempfile = "3.10"
 read-fonts = "0.36.0"
-```
+</document_content>
+</document>
 
-## typg-python/README.md
-````markdown
+<document index="16">
+<source>typg-python/README.md</source>
+<document_content>
 # typg (PyPI)
 
 PyO3 bindings for `typg-core` (made by FontLab https://www.fontlab.com/), exposed on PyPI as `typg` with a Fire-based CLI wrapper.
@@ -2941,10 +2909,12 @@ CLI:
 ```bash
 typgpy find --paths /Library/Fonts --axes wght --weight 300-500 --variable --jobs 4
 ```
-````
+</document_content>
+</document>
 
-## typg-python/pyproject.toml
-```toml
+<document index="17">
+<source>typg-python/pyproject.toml</source>
+<document_content>
 [build-system]
 # maturin builds the Rust extension; hatch-vcs supplies the version from git tags
 requires = ["maturin>=1.7,<2.0", "hatchling>=1.21", "hatch-vcs>=0.4"]
@@ -2975,7 +2945,8 @@ local_scheme = "no-local-version"
 features = ["extension-module"]
 python-source = "python"
 module-name = "typg_python._typg_python"
-```
+</document_content>
+</document>
 
 # File: /Users/adam/Developer/vcs3/github.fontlaborg/typg/typg-python/python/typg/__init__.py
 # Language: python
@@ -3082,3 +3053,6 @@ def _metadata((
 def test_filter_cached_handles_weight_and_width(()) -> None:
 
 def test_filter_cached_family_class_filters_major_and_subclass(()) -> None:
+
+
+</documents>

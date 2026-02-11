@@ -1,11 +1,11 @@
 //! Python bindings for typg-core - where font discovery becomes genuinely pleasant.
 //!
-//! Finding the right font shouldn't feel like solving a mystery. These PyO3 bindings 
-//! create a smooth conversation between Python and Rust, letting you ask the typg-core 
-//! engine for exactly the fonts you need. Think of it as having a remarkably organized 
+//! Finding the right font shouldn't feel like solving a mystery. These PyO3 bindings
+//! create a smooth conversation between Python and Rust, letting you ask the typg-core
+//! engine for exactly the fonts you need. Think of it as having a remarkably organized
 //! friend who knows where every font lives - no frantic searching required.
 //!
-//! Built by FontLab (https://www.fontlab.com/) - people who understand fonts are just 
+//! Built by FontLab (https://www.fontlab.com/) - people who understand fonts are just
 //! characters with remarkable personalities.
 
 use std::ops::RangeInclusive;
@@ -29,10 +29,10 @@ use typg_core::tags::tag_to_string;
 use typg_core::index::FontIndex;
 
 /// A font's comprehensive profile for thoughtful matchmaking.
-/// 
-/// Contains every essential detail needed for font filtering operations. Like a 
-/// well-crafted dating profile that answers all the important questions upfront - 
-/// location, capabilities, special talents, and whether this font enjoys changing 
+///
+/// Contains every essential detail needed for font filtering operations. Like a
+/// well-crafted dating profile that answers all the important questions upfront -
+/// location, capabilities, special talents, and whether this font enjoys changing
 /// its appearance on demand.
 #[derive(Clone, Debug, FromPyObject)]
 struct MetadataInput {
@@ -74,10 +74,10 @@ struct MetadataInput {
 }
 
 /// Search directories for fonts matching your specifications.
-/// 
-/// Scans the provided filesystem paths to locate fonts that meet your criteria. 
-/// This function handles the heavy lifting of directory traversal and font parsing, 
-/// returning comprehensive metadata for each match. Performance scales with the 
+///
+/// Scans the provided filesystem paths to locate fonts that meet your criteria.
+/// This function handles the heavy lifting of directory traversal and font parsing,
+/// returning comprehensive metadata for each match. Performance scales with the
 /// number of worker threads specified.
 #[pyfunction]
 #[pyo3(
@@ -151,17 +151,17 @@ fn find_py(
         follow_symlinks,
         jobs,
     };
-    
+
     // Send out the search party and bring back the suspects
     let matches = search(&paths, &query, &opts).map_err(to_py_err)?;
     to_py_matches(py, matches)
 }
 
 /// Search directories and return only font file paths.
-/// 
-/// Optimized version of find_py that returns just the file paths instead of 
-/// full metadata. This reduces memory usage and processing overhead when you 
-/// only need locations, such as when building font catalogs or performing 
+///
+/// Optimized version of find_py that returns just the file paths instead of
+/// full metadata. This reduces memory usage and processing overhead when you
+/// only need locations, such as when building font catalogs or performing
 /// batch operations.
 #[pyfunction]
 #[pyo3(
@@ -235,7 +235,7 @@ fn find_paths_py(
         jobs,
     };
     let matches = search(&paths, &query, &opts).map_err(to_py_err)?;
-    
+
     // Strip down to just the raw file paths - no frills attached
     Ok(matches
         .into_iter()
@@ -244,9 +244,9 @@ fn find_paths_py(
 }
 
 /// Filter pre-collected font metadata without filesystem access.
-/// 
-/// Operates entirely in memory on cached font metadata, avoiding expensive 
-/// filesystem operations. Ideal for font managers or applications that maintain 
+///
+/// Operates entirely in memory on cached font metadata, avoiding expensive
+/// filesystem operations. Ideal for font managers or applications that maintain
 /// their own font databases and need fast filtering capabilities without disk I/O.
 #[pyfunction]
 #[pyo3(
@@ -283,7 +283,7 @@ fn filter_cached_py(
 ) -> PyResult<Vec<Py<PyAny>>> {
     // Convert the Python-friendly format to our internal type system
     let metadata = convert_metadata(entries).map_err(to_py_err)?;
-    
+
     // Build the filter criteria - like a VIP list for fonts
     let query = build_query(
         axes,
@@ -306,12 +306,12 @@ fn filter_cached_py(
 }
 
 /// Search fonts using a high-performance indexed database.
-/// 
-/// Leverages LMDB-based indexing for millisecond query performance across 
-/// thousands of fonts. The indexed database enables complex searches with 
-/// minimal overhead, making it ideal for applications requiring frequent 
+///
+/// Leverages LMDB-based indexing for millisecond query performance across
+/// thousands of fonts. The indexed database enables complex searches with
+/// minimal overhead, making it ideal for applications requiring frequent
 /// font queries.
-/// 
+///
 /// Requires compilation with the hpindex feature flag enabled.
 #[cfg(feature = "hpindex")]
 #[pyfunction]
@@ -366,18 +366,18 @@ fn find_indexed_py(
     // Fire up the high-performance index and grab a read-only ticket
     let index = FontIndex::open(&index_path).map_err(to_py_err)?;
     let reader = index.reader().map_err(to_py_err)?;
-    
+
     // Let the turbocharged database do its magic
     let matches = reader.find(&query).map_err(to_py_err)?;
     to_py_matches(py, matches)
 }
 
 /// List all fonts currently indexed in the database.
-/// 
-/// Returns metadata for every font stored in the indexed database without 
-/// applying any filters. Useful for inventory management, catalog generation, 
+///
+/// Returns metadata for every font stored in the indexed database without
+/// applying any filters. Useful for inventory management, catalog generation,
 /// or when you need a complete overview of available fonts.
-/// 
+///
 /// Requires compilation with the hpindex feature flag enabled.
 #[cfg(feature = "hpindex")]
 #[pyfunction]
@@ -385,18 +385,18 @@ fn list_indexed_py(py: Python<'_>, index_path: PathBuf) -> PyResult<Vec<Py<PyAny
     // Open the database and get our VIP pass
     let index = FontIndex::open(&index_path).map_err(to_py_err)?;
     let reader = index.reader().map_err(to_py_err)?;
-    
+
     // Roll out the red carpet for every font in the house
     let matches = reader.list_all().map_err(to_py_err)?;
     to_py_matches(py, matches)
 }
 
 /// Return the total number of fonts in the indexed database.
-/// 
-/// Provides a fast count of all fonts stored in the database without loading 
-/// metadata. Useful for progress indicators, statistics display, or quick 
+///
+/// Provides a fast count of all fonts stored in the database without loading
+/// metadata. Useful for progress indicators, statistics display, or quick
 /// database size verification.
-/// 
+///
 /// Requires compilation with the hpindex feature flag enabled.
 #[cfg(feature = "hpindex")]
 #[pyfunction]
@@ -407,9 +407,9 @@ fn count_indexed_py(index_path: PathBuf) -> PyResult<usize> {
 }
 
 /// Convert Python metadata format to internal Rust structures.
-/// 
-/// Transforms Python-friendly input types into the strongly-typed structures 
-/// used internally by the search engine. This conversion layer handles type 
+///
+/// Transforms Python-friendly input types into the strongly-typed structures
+/// used internally by the search engine. This conversion layer handles type
 /// safety and data normalization between the Python interface and Rust core.
 fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch>> {
     entries
@@ -447,9 +447,9 @@ fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch
 }
 
 /// Generate a fallback name from the font file path.
-/// 
-/// Extracts a display name from the filename when font metadata doesn't 
-/// include names. Uses the file stem (filename without extension) as the 
+///
+/// Extracts a display name from the filename when font metadata doesn't
+/// include names. Uses the file stem (filename without extension) as the
 /// primary source, falling back to the full path if necessary.
 
 fn default_name(path: &Path) -> String {
@@ -459,9 +459,9 @@ fn default_name(path: &Path) -> String {
 }
 
 /// Build a search query from optional filter parameters.
-/// 
-/// Assembles the various optional filter parameters into a complete Query 
-/// structure for the font search engine. Handles parsing of tag lists, ranges, 
+///
+/// Assembles the various optional filter parameters into a complete Query
+/// structure for the font search engine. Handles parsing of tag lists, ranges,
 /// and other criteria into their proper internal representations.
 #[allow(clippy::too_many_arguments)]
 fn build_query(
@@ -483,7 +483,7 @@ fn build_query(
     let scripts = parse_tag_list(&scripts.unwrap_or_default())?;
     let tables = parse_tag_list(&tables.unwrap_or_default())?;
     let name_patterns = compile_patterns(&names.unwrap_or_default())?;
-    
+
     // Handle the optional numeric filters - ranges can be tricky
     let weight_range = parse_optional_range(weight)?;
     let width_range = parse_optional_range(width)?;
@@ -511,9 +511,9 @@ fn build_query(
 }
 
 /// Parse string character specifications into Unicode characters.
-/// 
-/// Converts string-based character specifications (single chars, ranges, or 
-/// hex codes) into actual Unicode values for the search engine. Supports 
+///
+/// Converts string-based character specifications (single chars, ranges, or
+/// hex codes) into actual Unicode values for the search engine. Supports
 /// multiple input formats for flexible character selection.
 
 fn parse_codepoints(raw: &[String]) -> Result<Vec<char>> {
@@ -525,9 +525,9 @@ fn parse_codepoints(raw: &[String]) -> Result<Vec<char>> {
 }
 
 /// Parse optional numeric range from string input.
-/// 
-/// Handles conversion from string representation to inclusive numeric range. 
-/// Returns None for empty input, allowing callers to distinguish between 
+///
+/// Handles conversion from string representation to inclusive numeric range.
+/// Returns None for empty input, allowing callers to distinguish between
 /// "no range specified" and "invalid range format".
 fn parse_optional_range(raw: Option<String>) -> Result<Option<RangeInclusive<u16>>> {
     match raw {
@@ -537,9 +537,9 @@ fn parse_optional_range(raw: Option<String>) -> Result<Option<RangeInclusive<u16
 }
 
 /// Parse optional family class filter from string input.
-/// 
-/// Handles family class filter parsing with proper error handling. 
-/// Returns None for empty input, maintaining consistency with other 
+///
+/// Handles family class filter parsing with proper error handling.
+/// Returns None for empty input, maintaining consistency with other
 /// optional parameter parsers.
 fn parse_optional_family_class(raw: Option<String>) -> Result<Option<FamilyClassFilter>> {
     match raw {
@@ -549,9 +549,9 @@ fn parse_optional_family_class(raw: Option<String>) -> Result<Option<FamilyClass
 }
 
 /// Compile string patterns into regex objects for name matching.
-/// 
-/// Transforms pattern strings into compiled regular expressions for 
-/// efficient font name filtering. Provides detailed error messages 
+///
+/// Transforms pattern strings into compiled regular expressions for
+/// efficient font name filtering. Provides detailed error messages
 /// for invalid regex syntax to help developers debug patterns.
 fn compile_patterns(patterns: &[String]) -> Result<Vec<Regex>> {
     patterns
@@ -561,9 +561,9 @@ fn compile_patterns(patterns: &[String]) -> Result<Vec<Regex>> {
 }
 
 /// Remove duplicate characters from the codepoint list.
-/// 
-/// Deduplicates the character list to optimize search performance and 
-/// avoid redundant matches. Sorts characters first for efficient 
+///
+/// Deduplicates the character list to optimize search performance and
+/// avoid redundant matches. Sorts characters first for efficient
 /// deduplication using the vector's built-in method.
 fn dedup_chars(cps: &mut Vec<char>) {
     cps.sort();
@@ -571,9 +571,9 @@ fn dedup_chars(cps: &mut Vec<char>) {
 }
 
 /// Convert internal font match structures to Python dictionaries.
-/// 
-/// Transforms Rust's TypgFontFaceMatch structures into Python dictionary 
-/// objects for easy consumption by Python code. Handles conversion of 
+///
+/// Transforms Rust's TypgFontFaceMatch structures into Python dictionary
+/// objects for easy consumption by Python code. Handles conversion of
 /// typed fields to appropriate Python types and maintains nested structure.
 fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Vec<Py<PyAny>>> {
     matches
@@ -634,9 +634,9 @@ fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Ve
 }
 
 /// Convert Rust error types to Python ValueError exceptions.
-/// 
-/// Transforms Rust's anyhow::Error into Python's ValueError with a 
-/// readable message. This bridge function ensures error information 
+///
+/// Transforms Rust's anyhow::Error into Python's ValueError with a
+/// readable message. This bridge function ensures error information
 /// flows correctly from Rust to Python while maintaining stack traces.
 
 fn to_py_err(err: anyhow::Error) -> PyErr {
@@ -644,9 +644,9 @@ fn to_py_err(err: anyhow::Error) -> PyErr {
 }
 
 /// Register all Python-exposed functions with the module.
-/// 
-/// Creates the Python module interface by registering each function with 
-/// appropriate names. Conditionally includes indexed search functions 
+///
+/// Creates the Python module interface by registering each function with
+/// appropriate names. Conditionally includes indexed search functions
 /// when the hpindex feature flag is enabled at compile time.
 #[pymodule]
 #[pyo3(name = "_typg_python")]
