@@ -48,6 +48,8 @@ fn sample_fonts() -> Vec<TypgFontFaceMatch> {
                 weight_class: Some(400),
                 width_class: Some(5),
                 family_class: Some((8, 0)),
+                creator_names: Vec::new(),
+                license_names: Vec::new(),
             },
         },
         TypgFontFaceMatch {
@@ -66,6 +68,8 @@ fn sample_fonts() -> Vec<TypgFontFaceMatch> {
                 weight_class: Some(700),
                 width_class: None,
                 family_class: None,
+                creator_names: Vec::new(),
+                license_names: Vec::new(),
             },
         },
     ]

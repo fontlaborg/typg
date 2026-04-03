@@ -71,6 +71,12 @@ struct MetadataInput {
     /// Font family class classification bits
     #[pyo3(default)]
     family_class: Option<u16>,
+    /// Creator-related name strings (copyright, trademark, manufacturer, etc.)
+    #[pyo3(default)]
+    creator_names: Vec<String>,
+    /// License-related name strings (copyright, license, license URL)
+    #[pyo3(default)]
+    license_names: Vec<String>,
 }
 
 /// Search directories for fonts matching your specifications.
@@ -93,6 +99,8 @@ struct MetadataInput {
         weight=None,
         width=None,
         family_class=None,
+        creator=None,
+        license=None,
         variable=false,
         follow_symlinks=false,
         jobs=None
@@ -112,6 +120,8 @@ fn find_py(
     weight: Option<String>,
     width: Option<String>,
     family_class: Option<String>,
+    creator: Option<Vec<String>>,
+    license: Option<Vec<String>>,
     variable: bool,
     follow_symlinks: bool,
     jobs: Option<usize>,
@@ -142,6 +152,8 @@ fn find_py(
         weight,
         width,
         family_class,
+        creator,
+        license,
         variable,
     )
     .map_err(to_py_err)?;
@@ -177,6 +189,8 @@ fn find_py(
         weight=None,
         width=None,
         family_class=None,
+        creator=None,
+        license=None,
         variable=false,
         follow_symlinks=false,
         jobs=None
@@ -195,6 +209,8 @@ fn find_paths_py(
     weight: Option<String>,
     width: Option<String>,
     family_class: Option<String>,
+    creator: Option<Vec<String>>,
+    license: Option<Vec<String>>,
     variable: bool,
     follow_symlinks: bool,
     jobs: Option<usize>,
@@ -225,6 +241,8 @@ fn find_paths_py(
         weight,
         width,
         family_class,
+        creator,
+        license,
         variable,
     )
     .map_err(to_py_err)?;
@@ -262,6 +280,8 @@ fn find_paths_py(
         weight=None,
         width=None,
         family_class=None,
+        creator=None,
+        license=None,
         variable=false
     )
 )]
@@ -279,6 +299,8 @@ fn filter_cached_py(
     weight: Option<String>,
     width: Option<String>,
     family_class: Option<String>,
+    creator: Option<Vec<String>>,
+    license: Option<Vec<String>>,
     variable: bool,
 ) -> PyResult<Vec<Py<PyAny>>> {
     // Convert the Python-friendly format to our internal type system
@@ -296,6 +318,8 @@ fn filter_cached_py(
         weight,
         width,
         family_class,
+        creator,
+        license,
         variable,
     )
     .map_err(to_py_err)?;
@@ -328,6 +352,8 @@ fn filter_cached_py(
         weight=None,
         width=None,
         family_class=None,
+        creator=None,
+        license=None,
         variable=false
     )
 )]
@@ -345,6 +371,8 @@ fn find_indexed_py(
     weight: Option<String>,
     width: Option<String>,
     family_class: Option<String>,
+    creator: Option<Vec<String>>,
+    license: Option<Vec<String>>,
     variable: bool,
 ) -> PyResult<Vec<Py<PyAny>>> {
     // Build our search criteria for the indexed database
@@ -359,6 +387,8 @@ fn find_indexed_py(
         weight,
         width,
         family_class,
+        creator,
+        license,
         variable,
     )
     .map_err(to_py_err)?;
@@ -440,6 +470,8 @@ fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch
                     family_class: entry
                         .family_class
                         .map(|raw| (((raw >> 8) & 0xFF) as u8, (raw & 0x00FF) as u8)),
+                    creator_names: entry.creator_names,
+                    license_names: entry.license_names,
                 },
             })
         })
@@ -451,7 +483,6 @@ fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch
 /// Extracts a display name from the filename when font metadata doesn't
 /// include names. Uses the file stem (filename without extension) as the
 /// primary source, falling back to the full path if necessary.
-
 fn default_name(path: &Path) -> String {
     path.file_stem()
         .map(|s| s.to_string_lossy().to_string())
@@ -475,6 +506,8 @@ fn build_query(
     weight: Option<String>,
     width: Option<String>,
     family_class: Option<String>,
+    creator: Option<Vec<String>>,
+    license: Option<Vec<String>>,
     variable: bool,
 ) -> Result<Query> {
     // Parse all the tag lists - turning strings into proper typed tags
@@ -483,6 +516,8 @@ fn build_query(
     let scripts = parse_tag_list(&scripts.unwrap_or_default())?;
     let tables = parse_tag_list(&tables.unwrap_or_default())?;
     let name_patterns = compile_patterns(&names.unwrap_or_default())?;
+    let creator_patterns = compile_patterns(&creator.unwrap_or_default())?;
+    let license_patterns = compile_patterns(&license.unwrap_or_default())?;
 
     // Handle the optional numeric filters - ranges can be tricky
     let weight_range = parse_optional_range(weight)?;
@@ -503,6 +538,8 @@ fn build_query(
         .with_scripts(scripts)
         .with_tables(tables)
         .with_name_patterns(name_patterns)
+        .with_creator_patterns(creator_patterns)
+        .with_license_patterns(license_patterns)
         .with_codepoints(cps)
         .require_variable(variable)
         .with_weight_range(weight_range)
@@ -515,7 +552,6 @@ fn build_query(
 /// Converts string-based character specifications (single chars, ranges, or
 /// hex codes) into actual Unicode values for the search engine. Supports
 /// multiple input formats for flexible character selection.
-
 fn parse_codepoints(raw: &[String]) -> Result<Vec<char>> {
     let mut cps = Vec::new();
     for chunk in raw {
@@ -622,6 +658,8 @@ fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Ve
             meta_dict.set_item("weight_class", meta.weight_class)?;
             meta_dict.set_item("width_class", meta.width_class)?;
             meta_dict.set_item("family_class", meta.family_class)?;
+            meta_dict.set_item("creator_names", meta.creator_names.clone())?;
+            meta_dict.set_item("license_names", meta.license_names.clone())?;
 
             let outer = PyDict::new(py);
             outer.set_item("path", item.source.path.to_string_lossy().to_string())?;
@@ -638,7 +676,6 @@ fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Ve
 /// Transforms Rust's anyhow::Error into Python's ValueError with a
 /// readable message. This bridge function ensures error information
 /// flows correctly from Rust to Python while maintaining stack traces.
-
 fn to_py_err(err: anyhow::Error) -> PyErr {
     PyValueError::new_err(err.to_string())
 }
@@ -685,6 +722,8 @@ mod tests {
             weight_class: None,
             width_class: None,
             family_class: None,
+            creator_names: Vec::new(),
+            license_names: Vec::new(),
         }
     }
 
@@ -705,6 +744,8 @@ mod tests {
                 None,
                 None,
                 Some(vec!["Pro".into()]),
+                None,
+                None,
                 None,
                 None,
                 None,
@@ -747,6 +788,8 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
                 false,
             )
             .unwrap_err();
@@ -776,6 +819,8 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
                 false,
                 false,
                 None,
@@ -795,6 +840,8 @@ mod tests {
         Python::attach(|_| {
             let err = find_paths_py(
                 Vec::new(),
+                None,
+                None,
                 None,
                 None,
                 None,
@@ -876,6 +923,8 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
                 true,
             )
             .unwrap();
@@ -887,6 +936,8 @@ mod tests {
                 index_path.clone(),
                 None,
                 Some(vec!["liga".into()]), // Not in the index
+                None,
+                None,
                 None,
                 None,
                 None,

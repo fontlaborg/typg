@@ -22,7 +22,7 @@ hpindex = ["typg-core/hpindex"]
 anyhow = "1.0"
 pyo3 = { version = "0.26", features = ["abi3-py310"] }
 regex = "1.11"
-typg-core = { version = "=1.0.1", path = "../typg-core" }
+typg-core = { version = "=1.0.1", path = "../../core/typg-core" }
 
 [dev-dependencies]
 indoc = "2.0"

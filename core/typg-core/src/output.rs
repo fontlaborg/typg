@@ -64,6 +64,8 @@ mod tests {
                 weight_class: None,
                 width_class: None,
                 family_class: None,
+                creator_names: Vec::new(),
+                license_names: Vec::new(),
             },
         }
     }

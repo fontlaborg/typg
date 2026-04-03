@@ -50,6 +50,10 @@ pub struct Query {
     width_range: Option<RangeInclusive<u16>>,
     /// What typographic family you belong to
     family_class: Option<FamilyClassFilter>,
+    /// Regex patterns to match against creator-related name strings
+    creator_patterns: Vec<Regex>,
+    /// Regex patterns to match against license-related name strings
+    license_patterns: Vec<Regex>,
 }
 
 impl Query {
@@ -107,6 +111,16 @@ impl Query {
         self
     }
 
+    pub fn with_creator_patterns(mut self, patterns: Vec<Regex>) -> Self {
+        self.creator_patterns = patterns;
+        self
+    }
+
+    pub fn with_license_patterns(mut self, patterns: Vec<Regex>) -> Self {
+        self.license_patterns = patterns;
+        self
+    }
+
     // Accessor methods for use by the high-performance index module.
 
     /// Get the required axis tags.
@@ -157,6 +171,16 @@ impl Query {
     /// Get the family class filter.
     pub fn family_class(&self) -> Option<&FamilyClassFilter> {
         self.family_class.as_ref()
+    }
+
+    /// Get the creator patterns.
+    pub fn creator_patterns(&self) -> &[Regex] {
+        &self.creator_patterns
+    }
+
+    /// Get the license patterns.
+    pub fn license_patterns(&self) -> &[Regex] {
+        &self.license_patterns
     }
 
     /// The moment of truth - does this font make your heart flutter?
@@ -230,6 +254,26 @@ impl Query {
                 .names
                 .iter()
                 .any(|name| self.name_patterns.iter().any(|re| re.is_match(name)));
+            if !matched {
+                return false;
+            }
+        }
+
+        if !self.creator_patterns.is_empty() {
+            let matched = meta
+                .creator_names
+                .iter()
+                .any(|name| self.creator_patterns.iter().any(|re| re.is_match(name)));
+            if !matched {
+                return false;
+            }
+        }
+
+        if !self.license_patterns.is_empty() {
+            let matched = meta
+                .license_names
+                .iter()
+                .any(|name| self.license_patterns.iter().any(|re| re.is_match(name)));
             if !matched {
                 return false;
             }

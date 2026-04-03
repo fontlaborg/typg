@@ -581,6 +581,8 @@ fn hydrate_match(meta: &IndexedFontMeta) -> TypgFontFaceMatch {
             weight_class: meta.weight_class,
             width_class: meta.width_class,
             family_class: meta.family_class,
+            creator_names: Vec::new(), // Not stored in indexed form
+            license_names: Vec::new(), // Not stored in indexed form
         },
     }
 }

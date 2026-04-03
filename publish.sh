@@ -39,6 +39,16 @@ log_dry() {
     echo -e "${YELLOW}[DRY-RUN]${NC} $1"
 }
 
+# Map crate names to their directory paths
+crate_dir() {
+    case "$1" in
+        typg-core)   echo "$PROJECT_ROOT/core/typg-core" ;;
+        typg-cli)    echo "$PROJECT_ROOT/cli" ;;
+        typg-python) echo "$PROJECT_ROOT/py/typg-python" ;;
+        *)           echo "$PROJECT_ROOT/$1" ;;
+    esac
+}
+
 # Usage information
 usage() {
     cat << EOF
@@ -194,7 +204,7 @@ get_semver_version() {
     fi
 
     local raw_version
-    pushd "$PROJECT_ROOT/typg-python" >/dev/null
+    pushd "$PROJECT_ROOT/py/typg-python" >/dev/null
     if ! raw_version=$(uvx hatch version 2>/dev/null); then
         popd >/dev/null
         log_error "Failed to read version from hatch-vcs; ensure git tags exist"
@@ -219,12 +229,12 @@ sync_versions_to_cargo() {
 
     log_info "Syncing Cargo.toml versions to ${version}"
 
-    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/typg-core/Cargo.toml"
-    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/typg-cli/Cargo.toml"
-    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/typg-python/Cargo.toml"
+    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/core/typg-core/Cargo.toml"
+    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/cli/Cargo.toml"
+    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/py/typg-python/Cargo.toml"
 
-    perl -0pi -e "s|typg-core = \{[^}]*path = \"\.\./typg-core\"[^}]*\}|typg-core = { version = \"=${version}\", path = \"../typg-core\" }|" "$PROJECT_ROOT/typg-cli/Cargo.toml"
-    perl -0pi -e "s|typg-core = \{[^}]*path = \"\.\./typg-core\"[^}]*\}|typg-core = { version = \"=${version}\", path = \"../typg-core\" }|" "$PROJECT_ROOT/typg-python/Cargo.toml"
+    perl -0pi -e "s|typg-core = \{[^}]*path = \"\.\./core/typg-core\"[^}]*\}|typg-core = { version = \"=${version}\", path = \"../core/typg-core\" }|" "$PROJECT_ROOT/cli/Cargo.toml"
+    perl -0pi -e "s|typg-core = \{[^}]*path = \"\.\./\.\./core/typg-core\"[^}]*\}|typg-core = { version = \"=${version}\", path = \"../../core/typg-core\" }|" "$PROJECT_ROOT/py/typg-python/Cargo.toml"
 }
 
 sync_only() {
@@ -421,9 +431,9 @@ publish_all() {
         log_info "Checking Rust crate versions..."
         
         for crate in typg-core typg-cli typg-python; do
-            local current_version=$(get_crate_version "$PROJECT_ROOT/$crate")
+            local current_version=$(get_crate_version "$(crate_dir "$crate")")
             local published_version=$(get_published_version "$crate")
-            
+
             if check_version_needs_publish "$current_version" "$published_version" "$crate"; then
                 needs_publishing=true
                 rust_needs=true
@@ -436,9 +446,9 @@ publish_all() {
     if [[ "$rust_only" != "true" ]]; then
         log_info "Checking Python package version..."
         
-        local current_python_version=$(get_crate_version "$PROJECT_ROOT/typg-python")
+        local current_python_version=$(get_crate_version "$(crate_dir "typg-python")")
         local published_python_version=$(get_python_published_version "typg")
-        
+
         if check_version_needs_publish "$current_python_version" "$published_python_version" "typg-python"; then
             needs_publishing=true
             python_needs=true
@@ -458,11 +468,11 @@ publish_all() {
     
     # First publish typg-core (dependency of others)
     if [[ "$python_only" != "true" ]] && [[ "$rust_needs" == "true" ]]; then
-        local core_version=$(get_crate_version "$PROJECT_ROOT/typg-core")
+        local core_version=$(get_crate_version "$(crate_dir "typg-core")")
         local core_published=$(get_published_version "typg-core")
-        
+
         if check_version_needs_publish "$core_version" "$core_published" "typg-core"; then
-            if ! publish_rust_crate "$PROJECT_ROOT/typg-core" "typg-core"; then
+            if ! publish_rust_crate "$(crate_dir "typg-core")" "typg-core"; then
                 failed_packages+=("typg-core")
             fi
         fi
@@ -474,11 +484,11 @@ publish_all() {
     # Then publish other Rust crates
     for crate in typg-cli typg-python; do
         if [[ "$python_only" != "true" ]] && [[ "$rust_needs" == "true" ]]; then
-            local current_version=$(get_crate_version "$PROJECT_ROOT/$crate")
+            local current_version=$(get_crate_version "$(crate_dir "$crate")")
             local published_version=$(get_published_version "$crate")
 
             if check_version_needs_publish "$current_version" "$published_version" "$crate"; then
-                if ! publish_rust_crate "$PROJECT_ROOT/$crate" "$crate"; then
+                if ! publish_rust_crate "$(crate_dir "$crate")" "$crate"; then
                     failed_packages+=("$crate")
                 fi
             fi
@@ -489,11 +499,11 @@ publish_all() {
     
     # Finally publish Python package
     if [[ "$rust_only" != "true" ]] && [[ "$python_needs" == "true" ]]; then
-        local current_python_version=$(get_crate_version "$PROJECT_ROOT/typg-python")
+        local current_python_version=$(get_crate_version "$(crate_dir "typg-python")")
         local published_python_version=$(get_python_published_version "typg")
-        
+
         if check_version_needs_publish "$current_python_version" "$published_python_version" "typg (PyPI)"; then
-            if ! publish_python_package "$PROJECT_ROOT/typg-python" "typg"; then
+            if ! publish_python_package "$(crate_dir "typg-python")" "typg"; then
                 failed_packages+=("typg (PyPI)")
             fi
         fi
@@ -516,7 +526,7 @@ check_status() {
     
     log_info "Rust crates:"
     for crate in typg-core typg-cli typg-python; do
-        local current_version=$(get_crate_version "$PROJECT_ROOT/$crate")
+        local current_version=$(get_crate_version "$(crate_dir "$crate")")
         local published_version=$(get_published_version "$crate")
         local status=""
         
@@ -530,7 +540,7 @@ check_status() {
     done
     
     log_info "Python package:"
-    local current_python_version=$(get_crate_version "$PROJECT_ROOT/typg-python")
+    local current_python_version=$(get_crate_version "$(crate_dir "typg-python")")
     local published_python_version=$(get_python_published_version "typg")
     local python_status=""
     

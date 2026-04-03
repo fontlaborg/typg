@@ -1,5 +1,5 @@
 [workspace]
-members = ["typg-core", "typg-cli", "typg-python"]
+members = ["core/typg-core", "cli", "py/typg-python"]
 resolver = "2"
 
 [workspace.package]

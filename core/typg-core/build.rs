@@ -7,7 +7,6 @@
 /// Currently keeping things simple with a watchful eye on its own changes.
 /// Future plans include gracefully handing over prebuilt font library indexes
 /// to the main crate - like passing a well-organized recipe card to the chef.
-
 fn main() {
     // Tap dance: Tell Cargo to rebuild when this script changes its moves
     println!("cargo:rerun-if-changed=build.rs");

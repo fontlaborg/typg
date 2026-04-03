@@ -25,6 +25,8 @@ fn metadata_with(
         weight_class,
         width_class,
         family_class,
+        creator_names: Vec::new(),
+        license_names: Vec::new(),
     }
 }
 

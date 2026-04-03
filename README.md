@@ -12,18 +12,26 @@ Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typ
 - Live scans work: axes/features/scripts/tables/name/regex/codepoints/text filters plus STDIN/system font discovery.
 - Cache path now ships: `typg cache add/list/find/clean` writes a JSON cache file; `--jobs` controls ingest/search threads.
 - OS/2 weight, width, and family-class filters now ship across Rust/Python/HTTP surfaces.
+- Creator and license regex search (`-c`/`-l`) across name table fields (copyright, trademark, manufacturer, designer, description, URLs, license).
 - Docs/spec cover planned parity (`docs/spec.md`); architecture notes live in `ARCHITECTURE.md`.
 
 ## Install (source, today)
 ```bash
-# Rust CLI
-cargo install --path typg-cli
+# Rust CLI (quick install)
+./install.sh
+
+# Rust CLI (with LMDB index support)
+./install.sh --hpindex
+
+# Rust CLI (manual)
+cargo install --path cli
 
 # Python bindings/CLI (uv-based)
+cd py/typg-python
 uv venv --python 3.12
 source .venv/bin/activate
 uv pip install maturin
-maturin develop --manifest-path typg-python/Cargo.toml --locked
+maturin develop --locked
 ```
 
 ## Usage
@@ -33,6 +41,8 @@ maturin develop --manifest-path typg-python/Cargo.toml --locked
 - Include system font roots: `typg find --system-fonts --columns`
 - Control worker count when scanning: `typg find --jobs 4 --variable ~/Fonts` (defaults to CPU count)
 - Filter OS/2 classifications: `typg find --weight 300-500 --width 5 --family-class sans ~/Fonts`
+- Search by creator/maker (regex across copyright, trademark, manufacturer, designer, description, URLs, license fields): `typg find --creator "FontLab" ~/Fonts`
+- Search by license (regex across copyright, license description, license URL): `typg find --license "OFL|Apache" ~/Fonts`
 - JSON output: add `--json` (array) or `--ndjson` (one match per line). Columns/plain auto-colorize unless `--color never`.
 - Paths-only output for piping into typf/fontlift/testypf: `typg find --paths ~/Fonts` (also works with `cache list/find`).
 - Path overrides for system fonts: set `TYPOG_SYSTEM_FONT_DIRS="/opt/fonts:/tmp/fonts"`.
@@ -65,6 +75,12 @@ print("weighted matches:", len(weighted))
 family = find(paths=["~/Fonts"], family_class="sans")
 print("sans-serif matches:", len(family))
 
+by_creator = find(paths=["~/Fonts"], creator=["FontLab"])
+print("FontLab fonts:", len(by_creator))
+
+by_license = find(paths=["~/Fonts"], license=["OFL|Apache"])
+print("open-license fonts:", len(by_license))
+
 # Indexed search (requires hpindex feature in build)
 try:
     from typg import find_indexed, list_indexed, count_indexed
@@ -90,7 +106,7 @@ let matches = search(&paths, &query, &SearchOptions::default())?;
 ```
 
 ## Migration (fontgrep/fontgrepc)
-- `typg find` mirrors `fontgrep find` flags already shipped (axes/features/scripts/tables/name/regex/codepoints/text, STDIN, system fonts, JSON/NDJSON, columns/plain).
+- `typg find` mirrors `fontgrep find` flags already shipped (axes/features/scripts/tables/name/regex/codepoints/text/creator/license, STDIN, system fonts, JSON/NDJSON, columns/plain).
 - Cache subcommands mirror fontgrepc (`add/list/find/clean`) using a JSON cache file; keep using fontgrepc if you need SQLite today.
 - Weight/class/width shorthands are still planned; use explicit tag filters for now.
 - Output layout matches fontgrepc NDJSON; column widths are stable for downstream tooling.

@@ -133,8 +133,8 @@ clean_build() {
     cargo clean
     
     # Clean Python build artifacts if they exist
-    if [[ -f "$PROJECT_ROOT/typg-python/pyproject.toml" ]]; then
-        (cd "$PROJECT_ROOT/typg-python" && rm -rf build/ dist/ *.egg-info/)
+    if [[ -f "$PROJECT_ROOT/py/typg-python/pyproject.toml" ]]; then
+        (cd "$PROJECT_ROOT/py/typg-python" && rm -rf build/ dist/ *.egg-info/)
     fi
     
     log_success "Build artifacts cleaned"
@@ -193,7 +193,7 @@ build_rust() {
 build_python() {
     log_info "Building Python bindings for Python $PYTHON_VERSION..."
     
-    cd "$PROJECT_ROOT/typg-python"
+    cd "$PROJECT_ROOT/py/typg-python"
     
     # Verify we're targeting the right Python version
     local python_exe="python${PYTHON_VERSION}"
@@ -231,7 +231,7 @@ build_python() {
 install_python_dev() {
     log_info "Installing Python bindings in development mode..."
     
-    cd "$PROJECT_ROOT/typg-python"
+    cd "$PROJECT_ROOT/py/typg-python"
     
     # Try to install in development mode using maturin develop
     if maturin develop --features extension-module 2>/dev/null; then

@@ -43,6 +43,10 @@ pub struct SearchRequest {
     pub tables: Vec<String>,
     /// Font names or family names you're looking for
     pub names: Vec<String>,
+    /// Regex patterns that must match creator info (copyright, trademark, manufacturer, designer, description, URLs, license)
+    pub creator: Vec<String>,
+    /// Regex patterns that must match license info (copyright, license description, license URL)
+    pub license: Vec<String>,
     /// Specific Unicode characters that must be present
     pub codepoints: Vec<String>,
     /// Sample text to test font compatibility
@@ -152,6 +156,8 @@ async fn search_handler(
         &req.scripts,
         &req.tables,
         &req.names,
+        &req.creator,
+        &req.license,
         &req.codepoints,
         &req.text,
         req.variable,

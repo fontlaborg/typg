@@ -59,7 +59,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Wander through live directories and discover fonts right where they live
-    Find(FindArgs),
+    Find(Box<FindArgs>),
 
     /// Browse your curated font collection without disturbing the files
     #[command(subcommand)]
@@ -77,7 +77,7 @@ enum CacheCommand {
     /// Take inventory of all the treasures you've gathered
     List(CacheListArgs),
     /// Browse your collection without making a mess on the filesystem
-    Find(CacheFindArgs),
+    Find(Box<CacheFindArgs>),
     /// Gently remove traces of fonts that have wandered away
     Clean(CacheCleanArgs),
     /// Share fascinating statistics about your font empire
@@ -211,6 +211,14 @@ struct CacheFindArgs {
     #[arg(short = 'n', long = "name", value_hint = ValueHint::Other)]
     name_patterns: Vec<String>,
 
+    /// Regex patterns that must match creator info (copyright, trademark, manufacturer, designer, description, URLs, license)
+    #[arg(short = 'c', long = "creator", value_hint = ValueHint::Other)]
+    creator_patterns: Vec<String>,
+
+    /// Regex patterns that must match license info (copyright, license description, license URL)
+    #[arg(short = 'l', long = "license", value_hint = ValueHint::Other)]
+    license_patterns: Vec<String>,
+
     /// Unicode codepoints or ranges (e.g. U+0041-U+0044,B)
     #[arg(short = 'u', long = "codepoints", value_delimiter = ',', value_hint = ValueHint::Other)]
     codepoints: Vec<String>,
@@ -314,6 +322,14 @@ struct FindArgs {
     #[arg(short = 'n', long = "name", value_hint = ValueHint::Other)]
     name_patterns: Vec<String>,
 
+    /// Regex patterns that must match creator info (copyright, trademark, manufacturer, designer, description, URLs, license)
+    #[arg(short = 'c', long = "creator", value_hint = ValueHint::Other)]
+    creator_patterns: Vec<String>,
+
+    /// Regex patterns that must match license info (copyright, license description, license URL)
+    #[arg(short = 'l', long = "license", value_hint = ValueHint::Other)]
+    license_patterns: Vec<String>,
+
     /// Unicode codepoints or ranges (e.g. U+0041-U+0044,B)
     #[arg(short = 'u', long = "codepoints", value_delimiter = ',', value_hint = ValueHint::Other)]
     codepoints: Vec<String>,
@@ -392,11 +408,11 @@ pub fn run() -> Result<()> {
     let quiet = cli.quiet;
 
     match cli.command {
-        Command::Find(args) => run_find(args),
+        Command::Find(args) => run_find(*args),
         Command::Cache(cmd) => match cmd {
             CacheCommand::Add(args) => run_cache_add(args, quiet),
             CacheCommand::List(args) => run_cache_list(args),
-            CacheCommand::Find(args) => run_cache_find(args),
+            CacheCommand::Find(args) => run_cache_find(*args),
             CacheCommand::Clean(args) => run_cache_clean(args, quiet),
             CacheCommand::Info(args) => run_cache_info(args),
         },
@@ -510,6 +526,8 @@ fn build_query(args: &FindArgs) -> Result<Query> {
         &args.scripts,
         &args.tables,
         &args.name_patterns,
+        &args.creator_patterns,
+        &args.license_patterns,
         &args.codepoints,
         &args.text,
         args.variable,
@@ -526,6 +544,8 @@ fn build_query_from_parts(
     scripts: &[String],
     tables: &[String],
     name_patterns: &[String],
+    creator_patterns: &[String],
+    license_patterns: &[String],
     codepoints: &[String],
     text: &Option<String>,
     variable: bool,
@@ -538,6 +558,8 @@ fn build_query_from_parts(
     let scripts = parse_tag_list(scripts)?;
     let tables = parse_tag_list(tables)?;
     let name_patterns = compile_patterns(name_patterns)?;
+    let creator_patterns = compile_patterns(creator_patterns)?;
+    let license_patterns = compile_patterns(license_patterns)?;
     let mut codepoints = parse_codepoints(codepoints)?;
     let weight_range = parse_optional_range(weight)?;
     let width_range = parse_optional_range(width)?;
@@ -555,6 +577,8 @@ fn build_query_from_parts(
         .with_scripts(scripts)
         .with_tables(tables)
         .with_name_patterns(name_patterns)
+        .with_creator_patterns(creator_patterns)
+        .with_license_patterns(license_patterns)
         .with_codepoints(codepoints)
         .require_variable(variable)
         .with_weight_range(weight_range)
@@ -892,6 +916,8 @@ fn run_cache_find(args: CacheFindArgs) -> Result<()> {
         &args.scripts,
         &args.tables,
         &args.name_patterns,
+        &args.creator_patterns,
+        &args.license_patterns,
         &args.codepoints,
         &args.text,
         args.variable,
@@ -1247,6 +1273,8 @@ fn run_cache_find_index(args: CacheFindArgs) -> Result<()> {
         &args.scripts,
         &args.tables,
         &args.name_patterns,
+        &args.creator_patterns,
+        &args.license_patterns,
         &args.codepoints,
         &args.text,
         args.variable,

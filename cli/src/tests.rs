@@ -33,6 +33,8 @@ fn metadata_with(name: &str, axis: Option<&str>, ttc: Option<u32>) -> TypgFontFa
             weight_class: None,
             width_class: None,
             family_class: None,
+            creator_names: Vec::new(),
+            license_names: Vec::new(),
         },
     }
 }
@@ -111,6 +113,8 @@ fn invalid_regex_returns_error() {
         scripts: Vec::new(),
         tables: Vec::new(),
         name_patterns: vec!["(".to_string()],
+        creator_patterns: Vec::new(),
+        license_patterns: Vec::new(),
         codepoints: Vec::new(),
         text: None,
         variable: false,
@@ -350,6 +354,8 @@ fn rejects_zero_jobs() {
         scripts: Vec::new(),
         tables: Vec::new(),
         name_patterns: Vec::new(),
+        creator_patterns: Vec::new(),
+        license_patterns: Vec::new(),
         codepoints: Vec::new(),
         text: None,
         variable: false,

@@ -68,6 +68,12 @@ pub struct TypgFontFaceMeta {
     /// What typographic family does this font belong to? (class and subgroup)
     #[serde(default)]
     pub family_class: Option<(u8, u8)>,
+    /// Strings from name IDs relevant to creator/maker (copyright, trademark, manufacturer, designer, description, vendor URL, designer URL, license, license URL)
+    #[serde(default)]
+    pub creator_names: Vec<String>,
+    /// Strings from name IDs relevant to licensing (copyright, license, license URL)
+    #[serde(default)]
+    pub license_names: Vec<String>,
 }
 
 /// Where each font calls home and how to find them at the party
@@ -212,12 +218,18 @@ fn load_metadata(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
         let fvar_tag = Tag::new(b"fvar");
         let is_variable = table_tags.contains(&fvar_tag);
         let (weight_class, width_class, family_class) = collect_classification(&font);
+        let mut creator_names = collect_creator_names(&font);
+        let mut license_names = collect_license_names(&font);
 
         dedup_tags(&mut axis_tags);
         dedup_tags(&mut feature_tags);
         dedup_tags(&mut script_tags);
         dedup_tags(&mut table_tags);
         dedup_codepoints(&mut codepoints);
+        creator_names.sort_unstable();
+        creator_names.dedup();
+        license_names.sort_unstable();
+        license_names.dedup();
 
         metas.push(TypgFontFaceMatch {
             source: TypgFontSource {
@@ -235,6 +247,8 @@ fn load_metadata(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
                 weight_class,
                 width_class,
                 family_class,
+                creator_names,
+                license_names,
             },
         });
     }
@@ -311,6 +325,72 @@ fn collect_names(font: &FontRef) -> Vec<String> {
             NameId::TYPOGRAPHIC_SUBFAMILY_NAME,
             NameId::FULL_NAME,
             NameId::POSTSCRIPT_NAME,
+        ];
+
+        for record in name_table.name_record() {
+            if !record.is_unicode() {
+                continue;
+            }
+            if !wanted.contains(&record.name_id()) {
+                continue;
+            }
+            if let Ok(entry) = record.string(data) {
+                let rendered = entry.to_string();
+                if !rendered.trim().is_empty() {
+                    names.push(rendered);
+                }
+            }
+        }
+    }
+
+    names
+}
+
+fn collect_creator_names(font: &FontRef) -> Vec<String> {
+    let mut names = Vec::new();
+
+    if let Ok(name_table) = font.name() {
+        let data = name_table.string_data();
+        let wanted = [
+            NameId::COPYRIGHT_NOTICE,
+            NameId::TRADEMARK,
+            NameId::MANUFACTURER,
+            NameId::DESIGNER,
+            NameId::DESCRIPTION,
+            NameId::VENDOR_URL,
+            NameId::DESIGNER_URL,
+            NameId::LICENSE_DESCRIPTION,
+            NameId::LICENSE_URL,
+        ];
+
+        for record in name_table.name_record() {
+            if !record.is_unicode() {
+                continue;
+            }
+            if !wanted.contains(&record.name_id()) {
+                continue;
+            }
+            if let Ok(entry) = record.string(data) {
+                let rendered = entry.to_string();
+                if !rendered.trim().is_empty() {
+                    names.push(rendered);
+                }
+            }
+        }
+    }
+
+    names
+}
+
+fn collect_license_names(font: &FontRef) -> Vec<String> {
+    let mut names = Vec::new();
+
+    if let Ok(name_table) = font.name() {
+        let data = name_table.string_data();
+        let wanted = [
+            NameId::COPYRIGHT_NOTICE,
+            NameId::LICENSE_DESCRIPTION,
+            NameId::LICENSE_URL,
         ];
 
         for record in name_table.name_record() {
