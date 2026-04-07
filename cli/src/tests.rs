@@ -1,7 +1,4 @@
-//! Test suite so gentle it practically tucks you in.
-//!
-//! We verify the CLI behaves like a well-trained puppy:
-//! commands parse, queries work, and outputs look pretty.
+//! Unit tests for typg CLI.
 
 use super::*;
 use clap::CommandFactory;
@@ -11,10 +8,7 @@ use tempfile::tempdir;
 use typg_core::search::{TypgFontFaceMatch, TypgFontFaceMeta, TypgFontSource};
 use typg_core::tags::tag4;
 
-/// Creates test font metadata faster than you can say "OpenType".
-///
-/// Think of this as our test kitchen fixture - it whips up
-/// font match data with just the ingredients we need for testing.
+/// Build a minimal `TypgFontFaceMatch` for use in tests.
 fn metadata_with(name: &str, axis: Option<&str>, ttc: Option<u32>) -> TypgFontFaceMatch {
     let ext = if ttc.is_some() { "ttc" } else { "ttf" };
     TypgFontFaceMatch {
@@ -41,8 +35,6 @@ fn metadata_with(name: &str, axis: Option<&str>, ttc: Option<u32>) -> TypgFontFa
 
 #[test]
 fn parses_find_args_into_query() {
-    // Parsing CLI arguments should feel like solving a puzzle,
-    // not wrestling with an octopus. Every flag has its place.
     let cli = Cli::try_parse_from([
         "typg",
         "find",
@@ -74,12 +66,10 @@ fn parses_find_args_into_query() {
         panic!("expected find command");
     };
 
-    // Build the query - where our filter dance begins.
     let query = build_query(&args).expect("build query");
     assert!(args.json);
     assert!(!args.ndjson);
 
-    // Create a font that matches all our criteria like a perfect key.
     let mut matching = metadata_with("Mono", Some("wght"), None);
     matching.metadata.feature_tags = vec![tag4("liga").unwrap()];
     matching.metadata.script_tags = vec![tag4("latn").unwrap()];
@@ -89,23 +79,18 @@ fn parses_find_args_into_query() {
     matching.metadata.family_class = Some((8, 0));
     assert!(query.matches(&matching.metadata));
 
-    // This poor font never stood a chance - wrong name, wrong everything.
     let non_matching = metadata_with("Sans", None, None);
     assert!(!query.matches(&non_matching.metadata));
 }
 
 #[test]
 fn json_and_ndjson_conflict() {
-    // You can't have your cake and eat it too.
-    // JSON and NDjson stare at each other across a chasm of mutual exclusion.
     let parse = Cli::try_parse_from(["typg", "find", "--json", "--ndjson", "/fonts"]);
     assert!(parse.is_err());
 }
 
 #[test]
 fn invalid_regex_returns_error() {
-    // Regex patterns need balance, like a good coffee.
-    // This orphaned "(" is the pattern equivalent of a wobbly table leg.
     let args = FindArgs {
         paths: vec![PathBuf::from("/fonts")],
         axes: Vec::new(),
@@ -139,8 +124,6 @@ fn invalid_regex_returns_error() {
 
 #[test]
 fn writes_plain_with_ttc_suffix() {
-    // TTC files are like a box of fonts - you need the number
-    // to tell which one you're getting. The #2 is our breadcrumb.
     let matches = vec![
         metadata_with("A", None, None),
         metadata_with("B", None, Some(2)),
@@ -156,8 +139,6 @@ fn writes_plain_with_ttc_suffix() {
 
 #[test]
 fn writes_paths_output_without_color() {
-    // Paths are for machines, not humans. No sprinkles, no colors,
-    // just the bare essentials - like a good Unix citizen.
     let matches = vec![
         metadata_with("A", None, None),
         metadata_with("B", None, Some(3)),
@@ -177,8 +158,6 @@ fn writes_paths_output_without_color() {
 
 #[test]
 fn text_flag_merges_into_codepoints() {
-    // Text and codepoints dance together like old friends.
-    // We can enter characters by Unicode or by just typing them.
     let cli = Cli::try_parse_from(["typg", "find", "-u", "U+0041", "-t", "B", "/fonts"])
         .expect("parse cli");
 
@@ -194,8 +173,6 @@ fn text_flag_merges_into_codepoints() {
 
 #[test]
 fn gathers_paths_from_stdin_when_flagged() {
-    // stdin is like a secret passage - enter through the back door
-    // when the front door (command line) is just too crowded.
     let mut stdin = Cursor::new(b"/fonts/A\n/fonts/B\n".to_vec());
     let paths = gather_paths(&[], true, false, &mut stdin).expect("paths");
 
@@ -207,8 +184,6 @@ fn gathers_paths_from_stdin_when_flagged() {
 
 #[test]
 fn dash_placeholder_reads_stdin_and_merges_other_paths() {
-    // The lonely "-" is stdin's calling card - it whispers
-    // "read from the pipe" while still accepting regular paths.
     let mut stdin = Cursor::new(b"/fonts/A\n".to_vec());
     let paths = gather_paths(
         &[PathBuf::from("-"), PathBuf::from("/fonts/B")],
@@ -226,8 +201,6 @@ fn dash_placeholder_reads_stdin_and_merges_other_paths() {
 
 #[test]
 fn system_font_roots_uses_override_env() {
-    // Environment variables are like secret handshakes -
-    // they can redirect our font search to unexpected places.
     let tmp = tempdir().expect("tempdir");
     let font_dir = tmp.path().join("fonts");
     std::fs::create_dir_all(&font_dir).expect("mkdir");
@@ -241,8 +214,6 @@ fn system_font_roots_uses_override_env() {
 
 #[test]
 fn columns_align_names() {
-    // Columns should stand at attention like well-disciplined soldiers,
-    // with names marching in perfect formation side by side.
     let matches = vec![
         metadata_with("Alpha", Some("wght"), None),
         metadata_with("Beta", None, None),
@@ -261,8 +232,6 @@ fn columns_align_names() {
 
 #[test]
 fn color_choice_is_applied() {
-    // ANSI escape codes are like makeup for terminal output -
-    // a little splash of color to make things pop.
     let matches = vec![metadata_with("Alpha", None, None)];
 
     let mut buf = Cursor::new(Vec::new());
@@ -274,8 +243,6 @@ fn color_choice_is_applied() {
 
 #[test]
 fn parses_color_and_columns_flags() {
-    // Flags are like toppings - you can have columns, or color,
-    // or both if you're feeling fancy. We check the order is right.
     let cli = Cli::try_parse_from(["typg", "find", "--columns", "--color", "always", "/fonts"])
         .expect("parse cli");
 
@@ -288,8 +255,6 @@ fn parses_color_and_columns_flags() {
 
 #[test]
 fn parses_paths_flag() {
-    // "--paths" is the minimalist option - just the facts, ma'am,
-    // no dressing, no garnish, just pure file paths.
     let cli = Cli::try_parse_from(["typg", "find", "--paths", "/fonts"]).expect("parse cli");
 
     let Command::Find(args) = cli.command else {
@@ -303,8 +268,6 @@ fn parses_paths_flag() {
 
 #[test]
 fn parses_serve_bind_flag() {
-    // The serve command can hang its shingle anywhere you point it.
-    // 0.0.0.0:9999 is the "come one, come all" address.
     let cli = Cli::try_parse_from(["typg", "serve", "--bind", "0.0.0.0:9999"]).expect("parse cli");
 
     let Command::Serve(args) = cli.command else {
@@ -316,8 +279,6 @@ fn parses_serve_bind_flag() {
 
 #[test]
 fn help_output_includes_new_flags() {
-    // Help text is our friend to the lost - it should list
-    // all the shiny new flags we've added to the toolkit.
     let mut root = Cli::command();
     let find = root
         .find_subcommand_mut("find")
@@ -333,8 +294,6 @@ fn help_output_includes_new_flags() {
 
 #[test]
 fn parses_jobs_flag() {
-    // Jobs are like little helpers - more hands make lighter work,
-    // but only when you ask nicely with the right number.
     let cli = Cli::try_parse_from(["typg", "find", "--jobs", "3", "/fonts"]).expect("parse cli");
 
     let Command::Find(args) = cli.command else {
@@ -345,8 +304,6 @@ fn parses_jobs_flag() {
 
 #[test]
 fn rejects_zero_jobs() {
-    // Zero jobs is like asking for a team of nobody -
-    // politely declined, as nothing would get done.
     let args = FindArgs {
         paths: vec![PathBuf::from("/fonts")],
         axes: Vec::new(),
@@ -380,8 +337,6 @@ fn rejects_zero_jobs() {
 
 #[test]
 fn merge_entries_deduplicates_by_path_and_ttc() {
-    // Merging fonts is like organizing a bookshelf - same book,
-    // different editions get their own spots, but duplicates fold together.
     let existing = vec![metadata_with("Alpha", None, None)];
     let additions = vec![
         metadata_with("Alpha", Some("wght"), None),
@@ -403,8 +358,6 @@ fn merge_entries_deduplicates_by_path_and_ttc() {
 
 #[test]
 fn resolve_cache_path_prefers_env_override() {
-    // Cache paths respect environment variables like polite houseguests -
-    // they'll happily use the custom location you've prepared.
     let tmp = tempdir().expect("tempdir");
     let target = tmp.path().join("cache.json");
 
@@ -417,8 +370,6 @@ fn resolve_cache_path_prefers_env_override() {
 
 #[test]
 fn prune_missing_entries_drops_nonexistent_paths() {
-    // The cache should be like memory - holding onto what's real,
-    // letting ghosts and vanished files drift away peacefully.
     let tmp = tempdir().expect("tempdir");
     let cache_file = tmp.path().join("cache.json");
 

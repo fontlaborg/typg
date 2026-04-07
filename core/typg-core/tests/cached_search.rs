@@ -1,9 +1,4 @@
-/// Testing our cached search superpowers
-///
-/// When you already have a list of fonts you've gotten to know,
-/// sometimes you just want to filter them by new criteria without
-/// re-reading all those font files. These tests make sure our
-/// speed-dating approach works like a charm.
+/// Integration tests for filtering pre-loaded font metadata without re-reading font files.
 use std::path::PathBuf;
 
 use typg_core::query::Query;

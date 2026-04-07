@@ -1,11 +1,6 @@
-//! typg CLI - The gentle font finder that discovers your type treasures
+//! typg CLI — font search and cache management.
 //!
-//! Like a friendly librarian who knows exactly where the good books are hiding,
-//! typg wanders through your font collections and surfaces the gems you need.
-//! No more hunting through endless directories - just tell it what you're looking for
-//! and watch it work its magic.
-//!
-//! Made by FontLab https://www.fontlab.com/ - because finding fonts should be delightful,
+//! Made by FontLab https://www.fontlab.com/
 
 mod server;
 
@@ -27,23 +22,21 @@ use typg_core::query::{
     parse_codepoint_list, parse_family_class, parse_tag_list, parse_u16_range, FamilyClassFilter,
     Query,
 };
-use typg_core::search::{filter_cached, search, SearchOptions, TypgFontFaceMatch};
+use typg_core::search::{
+    filter_cached, search, search_streaming, SearchOptions, TypgFontFaceMatch,
+};
 
 #[cfg(feature = "hpindex")]
 use typg_core::index::FontIndex;
 
-/// The friendly face of typg - your font-finding companion
-///
-/// Think of this as the welcoming front desk where your font adventures begin.
-/// It greets you, listens to what you need, and points you toward exactly the
-/// right tools for the job. No complex ceremonies - just helpful direction.
+/// Top-level CLI definition.
 #[derive(Debug, Parser)]
 #[command(
     name = "typg",
-    about = "Gentle font discovery that actually finds what you need (made by FontLab https://www.fontlab.com/)"
+    about = "Fast font search (made by FontLab https://www.fontlab.com/)"
 )]
 pub struct Cli {
-    /// Shhh... let the results speak for themselves
+    /// Suppress informational messages
     #[arg(short = 'q', long = "quiet", global = true, action = ArgAction::SetTrue)]
     quiet: bool,
 
@@ -51,98 +44,94 @@ pub struct Cli {
     command: Command,
 }
 
-/// The three paths your font journey can take
-///
-/// Each command is like a different trail through the font wilderness.
-/// One meanders through live directories, another explores cached treasures,
-/// and the third opens a cozy tea room for remote visitors.
+/// Available subcommands.
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Wander through live directories and discover fonts right where they live
+    /// Search directories for fonts matching a query
     Find(Box<FindArgs>),
 
-    /// Browse your curated font collection without disturbing the files
+    /// Manage the font metadata cache
     #[command(subcommand)]
     Cache(CacheCommand),
 
-    /// Share your font-finding powers with the world via HTTP
+    /// Start an HTTP search server
     Serve(ServeArgs),
 }
 
-/// Your cache management toolkit - like a gentle librarian organizing bookshelves
+/// Cache management subcommands.
 #[derive(Debug, Subcommand)]
 enum CacheCommand {
-    /// Invite new fonts into your carefully curated collection
+    /// Scan paths and add font metadata to the cache
     Add(CacheAddArgs),
-    /// Take inventory of all the treasures you've gathered
+    /// List all cached font entries
     List(CacheListArgs),
-    /// Browse your collection without making a mess on the filesystem
+    /// Query the cache without scanning the filesystem
     Find(Box<CacheFindArgs>),
-    /// Gently remove traces of fonts that have wandered away
+    /// Remove entries for fonts that no longer exist on disk
     Clean(CacheCleanArgs),
-    /// Share fascinating statistics about your font empire
+    /// Show cache location, size, and entry count
     Info(CacheInfoArgs),
 }
 
-/// Where to hang your "Open" sign for the world to see
+/// HTTP server configuration.
 #[derive(Debug, Args)]
 struct ServeArgs {
-    /// The street address for your font-discovery tea room
+    /// Address to bind (host:port)
     #[arg(long = "bind", default_value = "127.0.0.1:8765")]
     bind: String,
 }
 
-/// The gentle invitation to bring fonts into your collection
+/// Arguments for `cache add`.
 #[derive(Debug, Args)]
 struct CacheAddArgs {
-    /// Doorways to explore - could be a cozy folder or a single font file
+    /// Paths to scan (directories or individual font files)
     #[arg(
         value_hint = ValueHint::DirPath,
         required_unless_present_any = ["system_fonts", "stdin_paths"]
     )]
     paths: Vec<PathBuf>,
 
-    /// Listen carefully to paths whispered through standard input
+    /// Read additional paths from stdin, one per line
     #[arg(long = "stdin-paths", action = ArgAction::SetTrue)]
     stdin_paths: bool,
 
-    /// Automatically visit where your system keeps its font treasures
+    /// Include platform-default system font directories
     #[arg(long = "system-fonts", action = ArgAction::SetTrue)]
     system_fonts: bool,
 
-    /// Be brave and follow those mysterious shortcut signs
+    /// Follow symlinks during directory traversal
     #[arg(long = "follow-symlinks", action = ArgAction::SetTrue)]
     follow_symlinks: bool,
 
-    /// How many helpful assistants should join the adventure
+    /// Number of parallel worker threads
     #[arg(short = 'J', long = "jobs", value_hint = ValueHint::Other)]
     jobs: Option<usize>,
 
-    /// Where to store your carefully organized collection
+    /// Override cache file location
     #[arg(long = "cache-path", value_hint = ValueHint::FilePath)]
     cache_path: Option<PathBuf>,
 
-    /// Switch to the speedy database backend for serious collections
+    /// Use LMDB index backend instead of JSON cache
     #[arg(long = "index", action = ArgAction::SetTrue)]
     use_index: bool,
 
-    /// The secret garden for your high-performance index
+    /// Override LMDB index directory
     #[arg(long = "index-path", value_hint = ValueHint::DirPath)]
     index_path: Option<PathBuf>,
 }
 
-/// How your font discoveries should dress up for presentation
+/// Output format options shared across subcommands.
 #[derive(Debug, Args, Clone)]
 struct OutputArgs {
-    /// Wrap everything up in one tidy JSON gift box
+    /// Output as a single JSON array
     #[arg(long = "json", action = ArgAction::SetTrue, conflicts_with = "ndjson")]
     json: bool,
 
-    /// Send results down the line one at a time
+    /// Output as newline-delimited JSON (one object per line)
     #[arg(long = "ndjson", action = ArgAction::SetTrue)]
     ndjson: bool,
 
-    /// Just a simple list of where to find your treasures
+    /// Output file paths only (with #index for TTC faces)
     #[arg(
         long = "paths",
         action = ArgAction::SetTrue,
@@ -150,11 +139,11 @@ struct OutputArgs {
     )]
     paths: bool,
 
-    /// Arrange everything in neat, orderly columns like a proper bibliography
+    /// Output as aligned columns
     #[arg(long = "columns", action = ArgAction::SetTrue)]
     columns: bool,
 
-    /// Add a splash of color brighten your results
+    /// Colorize output (auto detects terminal)
     #[arg(long = "color", default_value_t = ColorChoice::Auto, value_enum)]
     color: ColorChoice,
 }
@@ -398,11 +387,7 @@ enum ColorChoice {
     Never,
 }
 
-/// The grand entrance where your font-finding adventure begins
-///
-/// Like a helpful concierge, this listens to your requests and guides you
-/// to exactly the right experience. It understands what you need and
-/// orchestrates the perfect journey through your font collection.
+/// Parse CLI arguments and dispatch to the appropriate handler.
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     let quiet = cli.quiet;
@@ -420,11 +405,7 @@ pub fn run() -> Result<()> {
     }
 }
 
-/// The filesystem wanderer - explores directories to find your treasures
-///
-/// This gentle explorer tiptoes through your directories, carefully examining
-/// each font it meets. It respects your boundaries, follows your hints,
-/// and returns with a beautifully curated collection of matches.
+/// Search directories for matching fonts, streaming results where possible.
 fn run_find(args: FindArgs) -> Result<()> {
     if matches!(args.jobs, Some(0)) {
         return Err(anyhow!("--jobs must be at least 1"));
@@ -443,15 +424,51 @@ fn run_find(args: FindArgs) -> Result<()> {
         jobs: args.jobs,
     };
 
-    let matches = search(&paths, &query, &opts)?;
+    let output = OutputFormat::from_find(&args);
 
-    if args.count_only {
-        println!("{}", matches.len());
-        return Ok(());
+    // Formats that need all results before writing
+    if args.count_only || output.json || output.columns {
+        let matches = search(&paths, &query, &opts)?;
+        if args.count_only {
+            println!("{}", matches.len());
+            return Ok(());
+        }
+        return write_matches(&matches, &output);
     }
 
-    let output = OutputFormat::from_find(&args);
-    write_matches(&matches, &output)
+    // Stream results to stdout as they're found
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    std::thread::scope(|s| -> Result<()> {
+        let handle = s.spawn(|| search_streaming(&paths, &query, &opts, tx));
+
+        let stdout = io::stdout();
+        let mut w = stdout.lock();
+        let use_color = match output.color {
+            ColorChoice::Always => true,
+            ColorChoice::Never => false,
+            ColorChoice::Auto => w.is_terminal(),
+        };
+
+        for m in rx {
+            if output.paths {
+                let _ = writeln!(w, "{}", m.source.path_with_index());
+            } else if output.ndjson {
+                if let Ok(line) = serde_json::to_string(&m) {
+                    let _ = w.write_all(line.as_bytes());
+                    let _ = w.write_all(b"\n");
+                }
+            } else {
+                let rendered = render_path(&m, use_color);
+                let _ = writeln!(w, "{rendered}");
+            }
+        }
+
+        match handle.join() {
+            Ok(result) => result,
+            Err(_) => Err(anyhow!("search thread panicked")),
+        }
+    })
 }
 
 fn run_serve(args: ServeArgs) -> Result<()> {
@@ -514,11 +531,7 @@ fn write_matches(matches: &[TypgFontFaceMatch], format: &OutputFormat) -> Result
     Ok(())
 }
 
-/// The careful listener that turns your wishes into a proper search query
-///
-/// This function pays close attention to everything you asked for, gently
-/// organizing your preferences into a structured query that the search
-/// engine can understand and act upon.
+/// Build a `Query` from the CLI filter arguments.
 fn build_query(args: &FindArgs) -> Result<Query> {
     build_query_from_parts(
         &args.axes,
@@ -1091,11 +1104,7 @@ fn resolve_index_path(custom: &Option<PathBuf>) -> Result<PathBuf> {
     ))
 }
 
-/// The patient librarian who retrieves your cached font memories
-///
-/// This gentle reader opens your carefully stored cache and lovingly restores
-/// each font entry. If the format looks a bit old-fashioned, it kindly adapts
-/// and understands anyway - because good relationships withstand change.
+/// Load cached font entries from disk. Tries JSON array first, falls back to NDJSON.
 fn load_cache(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
     let file = File::open(path).with_context(|| format!("opening cache {}", path.display()))?;
     let reader = BufReader::new(file);
@@ -1103,7 +1112,7 @@ fn load_cache(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
     match serde_json::from_reader(reader) {
         Ok(entries) => Ok(entries),
         Err(_) => {
-            // Fallback to NDJSON parsing for forward compatibility - like being bilingual
+            // Fall back to NDJSON parsing for forward compatibility
             let file =
                 File::open(path).with_context(|| format!("re-opening cache {}", path.display()))?;
             let reader = BufReader::new(file);
@@ -1117,11 +1126,7 @@ fn load_cache(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
     }
 }
 
-/// The careful archivist who preserves your font discoveries for future visits
-///
-/// This thoughtful writer carefully prepares a cozy home for your font memories,
-/// making sure everything is tidy and beautifully arranged for next time.
-/// It even builds the bookshelf first if it doesn't exist yet.
+/// Write font entries to the cache file as pretty-printed JSON.
 fn write_cache(path: &Path, entries: &[TypgFontFaceMatch]) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;

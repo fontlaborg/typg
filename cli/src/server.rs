@@ -1,8 +1,6 @@
-//! HTTP server for typg - like a friendly librarian for fonts (made by FontLab https://www.fontlab.com/)
+//! HTTP server for font search.
 //!
-//! This module serves up font search capabilities through a cozy little web API.
-//! Think of it as the front desk for your typographic adventures, welcoming
-//! requests and finding the perfect font matches faster than you can say "serif".
+//! Made by FontLab https://www.fontlab.com/
 
 use std::path::PathBuf;
 
@@ -23,117 +21,88 @@ use crate::build_query_from_parts;
 #[cfg(feature = "hpindex")]
 use crate::resolve_index_path;
 
-/// A gentle request to find fonts that match your wildest typographic dreams.
-///
-/// This struct captures all the parameters for a font search expedition.
-/// It's like leaving a detailed note for the font fairy: "I want something
-/// with Latin script, variable weight, and maybe a touch of elegance..."
+/// Parameters for an HTTP font search request.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct SearchRequest {
-    /// File paths where fonts might be hiding
+    /// Directories to search for fonts.
     pub paths: Vec<PathBuf>,
-    /// Variable font axes you'd like to explore (weight, width, optical size, etc.)
+    /// Variable font axis tags to require (e.g. wght, wdth, opsz).
     pub axes: Vec<String>,
-    /// OpenType features that make fonts dance (liga, dlig, calt, etc.)
+    /// OpenType feature tags to require (e.g. liga, dlig, calt).
     pub features: Vec<String>,
-    /// Scripts you need to support (latn, arab, cyrl, hani, etc.)
+    /// Script tags to require (e.g. latn, arab, cyrl, hani).
     pub scripts: Vec<String>,
-    /// Font tables you care about (GDEF, GSUB, GPOS, etc.)
+    /// Font table tags to require (e.g. GDEF, GSUB, GPOS).
     pub tables: Vec<String>,
-    /// Font names or family names you're looking for
+    /// Name or family name patterns to match.
     pub names: Vec<String>,
-    /// Regex patterns that must match creator info (copyright, trademark, manufacturer, designer, description, URLs, license)
+    /// Regex patterns that must match creator fields (copyright, trademark, manufacturer, designer, description, URLs, license).
     pub creator: Vec<String>,
-    /// Regex patterns that must match license info (copyright, license description, license URL)
+    /// Regex patterns that must match license fields (copyright, license description, license URL).
     pub license: Vec<String>,
-    /// Specific Unicode characters that must be present
+    /// Unicode codepoints that must be present in the font.
     pub codepoints: Vec<String>,
-    /// Sample text to test font compatibility
+    /// Sample text whose codepoints must all be present.
     pub text: Option<String>,
-    /// Only include fonts that can do the variable font shimmy
+    /// Restrict results to variable fonts.
     pub variable: bool,
-    /// Follow symbolic links like a curious kitten
+    /// Follow symbolic links during directory traversal.
     pub follow_symlinks: bool,
-    /// Number of parallel font explorers to send on the quest
+    /// Number of parallel worker threads.
     pub jobs: Option<usize>,
-    /// Just return paths, not the full font metadata
+    /// Return file paths only, without full metadata.
     pub paths_only: bool,
-    /// Specific weight class you're craving
+    /// Required weight class value or range.
     pub weight: Option<String>,
-    /// Width class preference (compressed, extended, etc.)
+    /// Required width class value or range.
     pub width: Option<String>,
-    /// Font family class (serif, sans-serif, script, etc.)
+    /// Required font family class (e.g. serif, sans-serif, script).
     pub family_class: Option<String>,
-    /// Use LMDB index instead of live scan (requires hpindex feature)
-    /// This is like using a map instead of wandering around asking for directions
+    /// Use the LMDB index instead of a live directory scan (requires hpindex feature).
     pub use_index: bool,
-    /// Custom index path (defaults to ~/.cache/typg/index or TYPOG_INDEX_PATH)
-    /// Your personal font library card catalog
+    /// Path to the LMDB index directory (defaults to ~/.cache/typg/index or TYPOG_INDEX_PATH).
     pub index_path: Option<PathBuf>,
 }
 
-/// The treasure chest overflowing with font discoveries!
-///
-/// The server sends this back when it finds fonts that match your request.
-/// It's like a happy little box of typographic surprises - either full font
-/// details with all their charming metadata, or just the file paths if you asked
-/// for the Cliff's Notes version.
+/// Search result wrapper returned by the HTTP server.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResponse {
-    /// Full font match details when you want the whole story
+    /// Full font match details, present when `paths_only` is false.
     pub matches: Option<Vec<TypgFontFaceMatch>>,
-    /// File paths only when you're in a hurry and just need addresses
+    /// File paths only, present when `paths_only` is true.
     pub paths: Option<Vec<String>>,
 }
 
-/// Opens the doors to the font search cafe and starts serving requests.
-///
-/// This function launches an HTTP server that listens for font search requests.
-/// It's like setting up a cozy little shop where people come asking for fonts,
-/// and we help them find exactly what they need with a smile and some fast responses.
+/// Start the HTTP server bound to the given address.
 pub async fn serve(bind: &str) -> Result<()> {
-    // Set up our welcoming door where visitors can knock
     let listener = TcpListener::bind(bind)
         .await
         .with_context(|| format!("binding HTTP server to {bind}"))?;
 
-    // Start serving up font-finding goodness to all who ask
     axum::serve(listener, router())
         .await
         .context("serving HTTP")?;
     Ok(())
 }
 
-/// Creates the road map for our tiny HTTP adventure.
-///
-/// This function builds the routing table that directs incoming requests
-/// to the right handlers. It's like a friendly receptionist who knows exactly
-/// where to send everyone - health checks to the wellness checkup room,
-/// font searches to the typographic treasure hunt department.
+/// Build the router with `/health` and `/search` endpoints.
 pub fn router() -> Router {
     Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/search", post(search_handler))
 }
 
-/// The heart of our operation - where font dreams come true.
-///
-/// This handler takes font search requests and turns them into actual font matches.
-/// It's like having a helpful librarian who listens to your vague description
-/// ("I need something fancy but readable") and returns exactly the right books
-/// from the vast library of typography.
+/// Handle a POST `/search` request and return matching fonts.
 async fn search_handler(
     Json(req): Json<SearchRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Index mode doesn't need paths (searches the index)
-    // Like using the card catalog instead of wandering the aisles
+    // Index mode searches the LMDB index and does not require paths.
     #[cfg(feature = "hpindex")]
     let needs_paths = !req.use_index;
     #[cfg(not(feature = "hpindex"))]
     let needs_paths = true;
 
-    // Make sure we have somewhere to look for fonts
     if needs_paths && req.paths.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -141,7 +110,6 @@ async fn search_handler(
         ));
     }
 
-    // Can't have zero workers - that's like trying to clean the house with nobody
     if matches!(req.jobs, Some(0)) {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -149,7 +117,6 @@ async fn search_handler(
         ));
     }
 
-    // Build the search query from all the lovely parameters
     let query = build_query_from_parts(
         &req.axes,
         &req.features,
@@ -167,13 +134,11 @@ async fn search_handler(
     )
     .map_err(to_bad_request)?;
 
-    // Dispatch to index search if requested (the fancy, fast way)
     #[cfg(feature = "hpindex")]
     if req.use_index {
         let index_path = resolve_index_path(&req.index_path).map_err(to_bad_request)?;
         let query_clone = query.clone();
 
-        // Let the tokio fairies do the heavy lifting in the background
         let matches = task::spawn_blocking(move || {
             let index = FontIndex::open(&index_path)?;
             let reader = index.reader()?;
@@ -188,7 +153,6 @@ async fn search_handler(
         })?
         .map_err(to_bad_request)?;
 
-        // Format the response based on what the caller asked for
         return if req.paths_only {
             let paths: Vec<String> = matches.iter().map(|m| m.source.path_with_index()).collect();
             Ok(Json(SearchResponse {
@@ -211,18 +175,15 @@ async fn search_handler(
         ));
     }
 
-    // Set up the live search options (the adventurous way)
     let opts = SearchOptions {
         follow_symlinks: req.follow_symlinks,
         jobs: req.jobs,
     };
 
-    // Clone everything for the background task (don't want to block the main thread!)
     let paths = req.paths.clone();
     let query_clone = query.clone();
     let opts_clone = opts.clone();
 
-    // Send the font explorers on their quest while we wait patiently
     let matches = task::spawn_blocking(move || search(&paths, &query_clone, &opts_clone))
         .await
         .map_err(|e| {
@@ -233,7 +194,6 @@ async fn search_handler(
         })?
         .map_err(to_bad_request)?;
 
-    // Wrap up the treasures in the requested format
     if req.paths_only {
         let paths: Vec<String> = matches.iter().map(|m| m.source.path_with_index()).collect();
         Ok(Json(SearchResponse {
@@ -248,11 +208,7 @@ async fn search_handler(
     }
 }
 
-/// Turns any sad error into a polite HTTP bad request response.
-///
-/// This helper function is like a gentle translator that speaks both
-/// "error" and "HTTP" fluently, ensuring error messages reach the caller
-/// with proper status codes and no hard feelings.
+/// Convert an error into a 400 Bad Request response.
 fn to_bad_request(err: impl std::fmt::Display) -> (StatusCode, String) {
     (StatusCode::BAD_REQUEST, err.to_string())
 }
@@ -267,11 +223,8 @@ mod tests {
     use std::env;
     use tower::util::ServiceExt;
 
-    /// Hunt for test fonts like a determined but gentle detective.
-    ///
-    /// This helper function searches far and wide for the test fonts directory,
-    /// checking several common hiding spots like a patient parent looking for
-    /// a misplaced teddy bear. Returns None if the fonts are playing hide and seek.
+    /// Locate the test fonts directory, checking the environment variable and known relative paths.
+    /// Returns `None` if no directory is found.
     fn fonts_dir() -> Option<PathBuf> {
         if let Ok(env_override) = env::var("TYPF_TEST_FONTS") {
             let path = PathBuf::from(env_override);
@@ -304,10 +257,7 @@ mod tests {
         None
     }
 
-    /// Test that we can ask for just font paths without all the fancy details.
-    ///
-    /// This test sends a search request and asks for paths only, then checks
-    /// if we get back a nice collection of file paths like a well-organized library.
+    /// Verify that a search request with `paths_only: true` returns file paths and no match details.
     #[tokio::test]
     async fn search_endpoint_returns_paths_only() {
         let fonts = match fonts_dir() {
@@ -337,10 +287,7 @@ mod tests {
         assert!(paths.iter().any(|p| p.ends_with("NotoSans-Regular.ttf")));
     }
 
-    /// Make sure we politely ask for paths when someone forgets to provide them.
-    ///
-    /// This test ensures the server gently reminds users that they need to tell us
-    /// where to look for fonts, like saying "you forgot to tell me where to search!"
+    /// Verify that a search request with no paths returns 400 Bad Request.
     #[tokio::test]
     async fn search_endpoint_requires_paths() {
         let app = router();
@@ -362,10 +309,7 @@ mod tests {
         );
     }
 
-    /// Ensure we don't let anyone try the impossible "zero workers" trick.
-    ///
-    /// This test verifies that asking for zero parallel workers gets a gentle
-    /// but firm rejection - we can't clean the house with nobody helping!
+    /// Verify that `jobs: 0` returns 400 Bad Request.
     #[tokio::test]
     async fn search_endpoint_rejects_zero_jobs() {
         let app = router();
@@ -384,10 +328,7 @@ mod tests {
         assert!(text.contains("jobs must be at least 1"), "body: {text}");
     }
 
-    /// Check if our little cafe is open for business.
-    ///
-    /// This ensures the health endpoint responds with a cheerful "ok",
-    /// like a friendly barista saying "we're open and ready to serve you!"
+    /// Verify that `GET /health` returns 200 OK with body `"ok"`.
     #[tokio::test]
     async fn health_endpoint_returns_ok() {
         let app = router();
@@ -400,11 +341,7 @@ mod tests {
         assert_eq!(body.as_ref(), b"ok");
     }
 
-    /// Test the super-fast indexed search like a font-seeking superhero.
-    ///
-    /// This test builds a temporary index, fills it with fonts, then searches
-    /// via HTTP to make sure the fancy indexing magic works properly. It's like
-    /// creating a mini library catalog and then asking if we can find books with it!
+    /// Build a temporary LMDB index, populate it with test fonts, and verify the HTTP search endpoint returns results.
     #[cfg(feature = "hpindex")]
     #[tokio::test]
     async fn search_endpoint_with_index() {
@@ -421,11 +358,9 @@ mod tests {
             None => return, // skip when fixtures are unavailable
         };
 
-        // Build a temporary index like a miniature font library
         let index_dir = tempfile::TempDir::new().unwrap();
         let index_path = index_dir.path().to_path_buf();
 
-        // Discover and add fonts to index like a diligent librarian stamping books
         let discovery = PathDiscovery::new([fonts.clone()]);
         let font_sources = discovery.discover().unwrap();
 
@@ -461,7 +396,6 @@ mod tests {
         writer.commit().unwrap();
         drop(index);
 
-        // Now query via HTTP and see if our fancy index works
         let app = router();
         let payload = json!({
             "use_index": true,

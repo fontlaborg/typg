@@ -1,12 +1,10 @@
-//! Python bindings for typg-core - where font discovery becomes genuinely pleasant.
+//! Python bindings for typg-core.
 //!
-//! Finding the right font shouldn't feel like solving a mystery. These PyO3 bindings
-//! create a smooth conversation between Python and Rust, letting you ask the typg-core
-//! engine for exactly the fonts you need. Think of it as having a remarkably organized
-//! friend who knows where every font lives - no frantic searching required.
+//! Exposes the typg-core font search and discovery engine to Python via PyO3.
+//! Provides functions for scanning font directories, filtering cached metadata,
+//! and (when compiled with the `hpindex` feature) querying an LMDB-backed index.
 //!
-//! Built by FontLab (https://www.fontlab.com/) - people who understand fonts are just
-//! characters with remarkable personalities.
+//! Built by FontLab (https://www.fontlab.com/).
 
 use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
@@ -28,12 +26,11 @@ use typg_core::tags::tag_to_string;
 #[cfg(feature = "hpindex")]
 use typg_core::index::FontIndex;
 
-/// A font's comprehensive profile for thoughtful matchmaking.
+/// Input structure holding font metadata provided from Python.
 ///
-/// Contains every essential detail needed for font filtering operations. Like a
-/// well-crafted dating profile that answers all the important questions upfront -
-/// location, capabilities, special talents, and whether this font enjoys changing
-/// its appearance on demand.
+/// Contains all fields required for font filtering operations: file path,
+/// name strings, OpenType tag lists, supported codepoints, classification
+/// values, and variable-font status.
 #[derive(Clone, Debug, FromPyObject)]
 struct MetadataInput {
     /// Absolute path where this font resides on disk
@@ -126,21 +123,19 @@ fn find_py(
     follow_symlinks: bool,
     jobs: Option<usize>,
 ) -> PyResult<Vec<Py<PyAny>>> {
-    // Can't search the void - need at least one place to look
     if paths.is_empty() {
         return Err(PyValueError::new_err(
             "at least one search path is required",
         ));
     }
 
-    // Zero workers means nobody gets the job done
     if matches!(jobs, Some(0)) {
         return Err(PyValueError::new_err(
             "jobs must be at least 1 when provided",
         ));
     }
 
-    // Build our font detective's search warrant
+    // Build query from parameters
     let query = build_query(
         axes,
         features,
@@ -158,13 +153,11 @@ fn find_py(
     )
     .map_err(to_py_err)?;
 
-    // Configure the search team
     let opts = SearchOptions {
         follow_symlinks,
         jobs,
     };
 
-    // Send out the search party and bring back the suspects
     let matches = search(&paths, &query, &opts).map_err(to_py_err)?;
     to_py_matches(py, matches)
 }
@@ -215,21 +208,18 @@ fn find_paths_py(
     follow_symlinks: bool,
     jobs: Option<usize>,
 ) -> PyResult<Vec<String>> {
-    // Same validation as its fancier cousin - no empty searches
     if paths.is_empty() {
         return Err(PyValueError::new_err(
             "at least one search path is required",
         ));
     }
 
-    // We need at least one worker bee in the hive
     if matches!(jobs, Some(0)) {
         return Err(PyValueError::new_err(
             "jobs must be at least 1 when provided",
         ));
     }
 
-    // Build the same fancy query, but we'll only use the addresses
     let query = build_query(
         axes,
         features,
@@ -247,14 +237,12 @@ fn find_paths_py(
     )
     .map_err(to_py_err)?;
 
-    // Search with the usual suspects
     let opts = SearchOptions {
         follow_symlinks,
         jobs,
     };
     let matches = search(&paths, &query, &opts).map_err(to_py_err)?;
 
-    // Strip down to just the raw file paths - no frills attached
     Ok(matches
         .into_iter()
         .map(|m| m.source.path_with_index())
@@ -303,10 +291,9 @@ fn filter_cached_py(
     license: Option<Vec<String>>,
     variable: bool,
 ) -> PyResult<Vec<Py<PyAny>>> {
-    // Convert the Python-friendly format to our internal type system
+    // Convert Python metadata input to internal Rust structures
     let metadata = convert_metadata(entries).map_err(to_py_err)?;
 
-    // Build the filter criteria - like a VIP list for fonts
     let query = build_query(
         axes,
         features,
@@ -324,7 +311,6 @@ fn filter_cached_py(
     )
     .map_err(to_py_err)?;
 
-    // Let the bouncer do the filtering - no filesystem required
     let matches = filter_cached(&metadata, &query);
     to_py_matches(py, matches)
 }
@@ -375,7 +361,6 @@ fn find_indexed_py(
     license: Option<Vec<String>>,
     variable: bool,
 ) -> PyResult<Vec<Py<PyAny>>> {
-    // Build our search criteria for the indexed database
     let query = build_query(
         axes,
         features,
@@ -393,11 +378,9 @@ fn find_indexed_py(
     )
     .map_err(to_py_err)?;
 
-    // Fire up the high-performance index and grab a read-only ticket
+    // Execute indexed search
     let index = FontIndex::open(&index_path).map_err(to_py_err)?;
     let reader = index.reader().map_err(to_py_err)?;
-
-    // Let the turbocharged database do its magic
     let matches = reader.find(&query).map_err(to_py_err)?;
     to_py_matches(py, matches)
 }
@@ -412,11 +395,8 @@ fn find_indexed_py(
 #[cfg(feature = "hpindex")]
 #[pyfunction]
 fn list_indexed_py(py: Python<'_>, index_path: PathBuf) -> PyResult<Vec<Py<PyAny>>> {
-    // Open the database and get our VIP pass
     let index = FontIndex::open(&index_path).map_err(to_py_err)?;
     let reader = index.reader().map_err(to_py_err)?;
-
-    // Roll out the red carpet for every font in the house
     let matches = reader.list_all().map_err(to_py_err)?;
     to_py_matches(py, matches)
 }
@@ -431,27 +411,23 @@ fn list_indexed_py(py: Python<'_>, index_path: PathBuf) -> PyResult<Vec<Py<PyAny
 #[cfg(feature = "hpindex")]
 #[pyfunction]
 fn count_indexed_py(index_path: PathBuf) -> PyResult<usize> {
-    // Open up the database and ask for the head count
     let index = FontIndex::open(&index_path).map_err(to_py_err)?;
     index.count().map_err(to_py_err)
 }
 
-/// Convert Python metadata format to internal Rust structures.
+/// Convert Python metadata input to internal Rust structures.
 ///
-/// Transforms Python-friendly input types into the strongly-typed structures
-/// used internally by the search engine. This conversion layer handles type
-/// safety and data normalization between the Python interface and Rust core.
+/// Maps each `MetadataInput` to a `TypgFontFaceMatch`, parsing tag lists and
+/// codepoints into their strongly-typed internal representations.
 fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch>> {
     entries
         .into_iter()
         .map(|entry| {
-            // Make sure we always have at least one name for this font
             let mut names = entry.names;
             if names.is_empty() {
                 names.push(default_name(&entry.path));
             }
 
-            // Build the complete font profile in our internal format
             Ok(TypgFontFaceMatch {
                 source: TypgFontSource {
                     path: entry.path,
@@ -510,7 +486,6 @@ fn build_query(
     license: Option<Vec<String>>,
     variable: bool,
 ) -> Result<Query> {
-    // Parse all the tag lists - turning strings into proper typed tags
     let axes = parse_tag_list(&axes.unwrap_or_default())?;
     let features = parse_tag_list(&features.unwrap_or_default())?;
     let scripts = parse_tag_list(&scripts.unwrap_or_default())?;
@@ -519,19 +494,17 @@ fn build_query(
     let creator_patterns = compile_patterns(&creator.unwrap_or_default())?;
     let license_patterns = compile_patterns(&license.unwrap_or_default())?;
 
-    // Handle the optional numeric filters - ranges can be tricky
     let weight_range = parse_optional_range(weight)?;
     let width_range = parse_optional_range(width)?;
     let family_class = parse_optional_family_class(family_class)?;
 
-    // Mix explicit codepoints with any text characters provided
+    // Merge explicit codepoints with characters from the text argument
     let mut cps = parse_codepoints(&codepoints.unwrap_or_default())?;
     if let Some(text) = text {
         cps.extend(text.chars());
     }
     dedup_chars(&mut cps);
 
-    // Assemble the final query with all our carefully parsed components
     Ok(Query::new()
         .with_axes(axes)
         .with_features(features)
@@ -688,12 +661,11 @@ fn to_py_err(err: anyhow::Error) -> PyErr {
 #[pymodule]
 #[pyo3(name = "_typg_python")]
 fn typg_python(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
-    // Core search functions - always available
     m.add_function(wrap_pyfunction!(find_py, m)?)?;
     m.add_function(wrap_pyfunction!(find_paths_py, m)?)?;
     m.add_function(wrap_pyfunction!(filter_cached_py, m)?)?;
 
-    // Indexed search functions - requires hpindex feature flag
+    // Indexed search functions: available only when compiled with hpindex feature
     #[cfg(feature = "hpindex")]
     {
         m.add_function(wrap_pyfunction!(find_indexed_py, m)?)?;
