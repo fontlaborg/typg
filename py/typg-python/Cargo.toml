@@ -28,4 +28,4 @@ typg-core = { version = "=1.0.1", path = "../../core/typg-core" }
 indoc = "2.0"
 pyo3 = { version = "0.26", features = ["abi3-py310"] }
 tempfile = "3.10"
-read-fonts = "0.36.0"
+read-fonts = "0.39.1"
