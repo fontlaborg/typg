@@ -108,6 +108,36 @@ check_dependencies() {
     return 0
 }
 
+# Sync Cargo.toml versions to the latest vN.N.N git tag.
+# Runs on every build so versions stay current automatically.
+sync_cargo_versions() {
+    local tag
+    tag=$(git -C "$PROJECT_ROOT" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null) || {
+        log_warning "No git tag found — skipping version sync"
+        return 0
+    }
+
+    local version="${tag#v}"
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log_warning "Tag '$tag' is not semver — skipping version sync"
+        return 0
+    fi
+
+    local current
+    current=$(grep '^version = ' "$PROJECT_ROOT/core/typg-core/Cargo.toml" | sed 's/version = "\(.*\)"/\1/' | head -n1)
+
+    if [[ "$current" == "$version" ]]; then
+        return 0
+    fi
+
+    log_info "Syncing Cargo.toml versions to $version (from tag $tag)"
+    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/core/typg-core/Cargo.toml"
+    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/cli/Cargo.toml"
+    perl -0pi -e "s/^version = \"[^\"]*\"/version = \"${version}\"/m" "$PROJECT_ROOT/py/typg-python/Cargo.toml"
+    perl -0pi -e "s/typg-core = \{[^}]*path = \"\.\.\/core\/typg-core\"[^}]*\}/typg-core = { version = \"=${version}\", path = \"..\/core\/typg-core\" }/g" "$PROJECT_ROOT/cli/Cargo.toml"
+    perl -0pi -e "s/typg-core = \{[^}]*path = \"\.\.\/\.\.\/core\/typg-core\"[^}]*\}/typg-core = { version = \"=${version}\", path = \"..\/..\/core\/typg-core\" }/g" "$PROJECT_ROOT/py/typg-python/Cargo.toml"
+}
+
 # Detect macOS architecture
 detect_arch() {
     local arch=$(uname -m)
@@ -332,7 +362,10 @@ main() {
     
     # Dependencies check
     check_dependencies
-    
+
+    # Sync Cargo.toml versions from git tag
+    sync_cargo_versions
+
     # Build components
     build_rust
     if [[ "$SKIP_PYTHON" != "true" ]]; then

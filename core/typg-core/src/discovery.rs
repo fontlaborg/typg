@@ -71,8 +71,7 @@ impl FontDiscovery for PathDiscovery {
             for entry in WalkDir::new(root).follow_links(self.follow_symlinks) {
                 let entry = match entry {
                     Ok(e) => e,
-                    Err(e) => {
-                        eprintln!("warning: {e}");
+                    Err(_) => {
                         continue;
                     }
                 };

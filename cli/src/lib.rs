@@ -33,6 +33,7 @@ use typg_core::index::FontIndex;
 #[derive(Debug, Parser)]
 #[command(
     name = "typg",
+    version,
     about = "Fast font search (made by FontLab https://www.fontlab.com/)"
 )]
 pub struct Cli {
@@ -142,6 +143,10 @@ struct OutputArgs {
     /// Output as aligned columns
     #[arg(long = "columns", action = ArgAction::SetTrue)]
     columns: bool,
+
+    /// Show individual TTC/OTC collection faces (path#index); default deduplicates by path
+    #[arg(long = "collections", action = ArgAction::SetTrue)]
+    collections: bool,
 
     /// Colorize output (auto detects terminal)
     #[arg(long = "color", default_value_t = ColorChoice::Auto, value_enum)]
@@ -371,6 +376,10 @@ struct FindArgs {
     #[arg(long = "columns", action = ArgAction::SetTrue)]
     columns: bool,
 
+    /// Show individual TTC/OTC collection faces (path#index); default deduplicates by path
+    #[arg(long = "collections", action = ArgAction::SetTrue)]
+    collections: bool,
+
     /// Only output the count of matching fonts (useful for scripting)
     #[arg(long = "count", action = ArgAction::SetTrue, conflicts_with_all = ["json", "ndjson", "paths_only", "columns"])]
     count_only: bool,
@@ -450,16 +459,24 @@ fn run_find(args: FindArgs) -> Result<()> {
             ColorChoice::Auto => w.is_terminal(),
         };
 
+        let mut seen = std::collections::HashSet::new();
         for m in rx {
             if output.paths {
-                let _ = writeln!(w, "{}", m.source.path_with_index());
+                if output.collections {
+                    let _ = writeln!(w, "{}", m.source.path_with_index());
+                } else if seen.insert(m.source.path.clone()) {
+                    let _ = writeln!(w, "{}", m.source.path.display());
+                }
             } else if output.ndjson {
                 if let Ok(line) = serde_json::to_string(&m) {
                     let _ = w.write_all(line.as_bytes());
                     let _ = w.write_all(b"\n");
                 }
-            } else {
-                let rendered = render_path(&m, use_color);
+            } else if output.collections {
+                let rendered = render_path(&m, use_color, true);
+                let _ = writeln!(w, "{rendered}");
+            } else if seen.insert(m.source.path.clone()) {
+                let rendered = render_path(&m, use_color, false);
                 let _ = writeln!(w, "{rendered}");
             }
         }
@@ -482,6 +499,7 @@ struct OutputFormat {
     ndjson: bool,
     paths: bool,
     columns: bool,
+    collections: bool,
     color: ColorChoice,
 }
 
@@ -492,6 +510,7 @@ impl OutputFormat {
             ndjson: args.ndjson,
             paths: args.paths_only,
             columns: args.columns,
+            collections: args.collections,
             color: args.color,
         }
     }
@@ -502,6 +521,7 @@ impl OutputFormat {
             ndjson: args.ndjson,
             paths: args.paths,
             columns: args.columns,
+            collections: args.collections,
             color: args.color,
         }
     }
@@ -517,15 +537,15 @@ fn write_matches(matches: &[TypgFontFaceMatch], format: &OutputFormat) -> Result
     };
 
     if format.paths {
-        write_paths(matches, &mut handle)?;
+        write_paths(matches, &mut handle, format.collections)?;
     } else if format.ndjson {
         write_ndjson(matches, &mut handle)?;
     } else if format.json {
         write_json_pretty(matches, &mut handle)?;
     } else if format.columns {
-        write_columns(matches, &mut handle, use_color)?;
+        write_columns(matches, &mut handle, use_color, format.collections)?;
     } else {
-        write_plain(matches, &mut handle, use_color)?;
+        write_plain(matches, &mut handle, use_color, format.collections)?;
     }
 
     Ok(())
@@ -746,26 +766,63 @@ fn system_font_roots() -> Result<Vec<PathBuf>> {
     Ok(candidates)
 }
 
-fn write_plain(matches: &[TypgFontFaceMatch], mut w: impl Write, color: bool) -> Result<()> {
-    for item in matches {
-        let rendered = render_path(item, color);
-        writeln!(w, "{rendered}")?;
+fn write_plain(
+    matches: &[TypgFontFaceMatch],
+    mut w: impl Write,
+    color: bool,
+    collections: bool,
+) -> Result<()> {
+    if collections {
+        for item in matches {
+            let rendered = render_path(item, color, true);
+            writeln!(w, "{rendered}")?;
+        }
+    } else {
+        let mut seen = std::collections::HashSet::new();
+        for item in matches {
+            if seen.insert(item.source.path.clone()) {
+                let rendered = render_path(item, color, false);
+                writeln!(w, "{rendered}")?;
+            }
+        }
     }
     Ok(())
 }
 
-fn write_paths(matches: &[TypgFontFaceMatch], mut w: impl Write) -> Result<()> {
-    for item in matches {
-        writeln!(w, "{}", item.source.path_with_index())?;
+fn write_paths(
+    matches: &[TypgFontFaceMatch],
+    mut w: impl Write,
+    collections: bool,
+) -> Result<()> {
+    if collections {
+        for item in matches {
+            writeln!(w, "{}", item.source.path_with_index())?;
+        }
+    } else {
+        let mut seen = std::collections::HashSet::new();
+        for item in matches {
+            if seen.insert(item.source.path.clone()) {
+                writeln!(w, "{}", item.source.path.display())?;
+            }
+        }
     }
     Ok(())
 }
 
-fn write_columns(matches: &[TypgFontFaceMatch], mut w: impl Write, color: bool) -> Result<()> {
+fn write_columns(
+    matches: &[TypgFontFaceMatch],
+    mut w: impl Write,
+    color: bool,
+    collections: bool,
+) -> Result<()> {
     let mut rows: Vec<(String, String, String)> = matches
         .iter()
         .map(|m| {
-            let path = m.source.path_with_index();
+            let path = if collections {
+                m.source.path_with_index()
+            } else {
+                m.source.path.display().to_string()
+            };
             let name = m
                 .metadata
                 .names
@@ -833,8 +890,12 @@ fn apply_color(text: &str, color: bool, code: AnsiColor) -> String {
     format!("\u{1b}[{}m{}\u{1b}[0m", code_str, text)
 }
 
-fn render_path(item: &TypgFontFaceMatch, color: bool) -> String {
-    let rendered = item.source.path_with_index();
+fn render_path(item: &TypgFontFaceMatch, color: bool, collections: bool) -> String {
+    let rendered = if collections {
+        item.source.path_with_index()
+    } else {
+        item.source.path.display().to_string()
+    };
     apply_color(&rendered, color, AnsiColor::Cyan)
 }
 

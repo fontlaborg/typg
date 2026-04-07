@@ -128,10 +128,7 @@ pub fn search(
             .par_iter()
             .flat_map_iter(|loc| match load_metadata(&loc.path) {
                 Ok(faces) => faces,
-                Err(e) => {
-                    eprintln!("warning: {e}");
-                    Vec::new()
-                }
+                Err(_) => Vec::new(),
             })
             .filter(|face| query.matches(&face.metadata))
             .collect();
@@ -177,9 +174,7 @@ pub fn search_streaming(
                         }
                     }
                 }
-                Err(e) => {
-                    eprintln!("warning: {e}");
-                }
+                Err(_) => {}
             });
     };
 

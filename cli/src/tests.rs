@@ -114,6 +114,7 @@ fn invalid_regex_returns_error() {
         ndjson: false,
         paths_only: false,
         columns: false,
+        collections: false,
         count_only: false,
         color: ColorChoice::Auto,
     };
@@ -130,7 +131,7 @@ fn writes_plain_with_ttc_suffix() {
     ];
 
     let mut buf = Cursor::new(Vec::new());
-    write_plain(&matches, &mut buf, false).expect("write");
+    write_plain(&matches, &mut buf, false, true).expect("write");
 
     let output = String::from_utf8(buf.into_inner()).expect("utf8");
     assert!(output.contains("/fonts/A.ttf"));
@@ -145,7 +146,7 @@ fn writes_paths_output_without_color() {
     ];
 
     let mut buf = Cursor::new(Vec::new());
-    write_paths(&matches, &mut buf).expect("write paths");
+    write_paths(&matches, &mut buf, true).expect("write paths");
 
     let output = String::from_utf8(buf.into_inner()).expect("utf8");
     let lines: Vec<&str> = output.lines().collect();
@@ -220,7 +221,7 @@ fn columns_align_names() {
     ];
 
     let mut buf = Cursor::new(Vec::new());
-    write_columns(&matches, &mut buf, false).expect("write");
+    write_columns(&matches, &mut buf, false, false).expect("write");
 
     let output = String::from_utf8(buf.into_inner()).expect("utf8");
     let lines: Vec<&str> = output.lines().collect();
@@ -235,7 +236,7 @@ fn color_choice_is_applied() {
     let matches = vec![metadata_with("Alpha", None, None)];
 
     let mut buf = Cursor::new(Vec::new());
-    write_plain(&matches, &mut buf, true).expect("write");
+    write_plain(&matches, &mut buf, true, false).expect("write");
 
     let output = String::from_utf8(buf.into_inner()).expect("utf8");
     assert!(output.contains("\u{1b}["));
@@ -327,6 +328,7 @@ fn rejects_zero_jobs() {
         ndjson: false,
         paths_only: false,
         columns: false,
+        collections: false,
         count_only: false,
         color: ColorChoice::Auto,
     };

@@ -196,31 +196,22 @@ get_python_published_version() {
 	fi
 }
 
-# Derive version from git tags via hatch-vcs (required)
+# Derive version from the latest vN.N.N git tag.
 get_semver_version() {
-	if ! command -v hatch >/dev/null 2>&1; then
-		log_error "hatch is required to compute the version via hatch-vcs"
+	local tag
+	tag=$(git -C "$PROJECT_ROOT" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null) || {
+		log_error "No vN.N.N git tag found; create one first (e.g. git tag v5.0.9)"
+		return 1
+	}
+
+	local version="${tag#v}"
+
+	if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+		log_error "Tag '$tag' is not a valid semver version (expected vX.Y.Z)"
 		return 1
 	fi
 
-	local raw_version
-	pushd "$PROJECT_ROOT/py/typg-python" >/dev/null
-	if ! raw_version=$(uvx hatch version 2>/dev/null | tail -n 1); then
-		popd >/dev/null
-		log_error "Failed to read version from hatch-vcs; ensure git tags exist"
-		return 1
-	fi
-	popd >/dev/null
-
-	# Strip leading 'v' if present
-	raw_version="${raw_version#v}"
-
-	if [[ "$raw_version" == *dev* ]] || [[ "$raw_version" == *+* ]]; then
-		log_error "Version $raw_version is not a clean tag; create/checkout a semver tag before publishing"
-		return 1
-	fi
-
-	echo "$raw_version"
+	echo "$version"
 }
 
 # Write the resolved version into Cargo manifests and path deps
