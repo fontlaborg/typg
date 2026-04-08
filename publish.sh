@@ -412,6 +412,15 @@ publish_all() {
 	log_info "Using version: ${resolved_version} (from git tags via hatch-vcs)"
 	sync_versions_to_cargo "$resolved_version"
 
+	# Commit and push version sync if Cargo files changed
+	if ! git -C "$PROJECT_ROOT" diff --quiet -- '*.toml' 'Cargo.lock' 2>/dev/null; then
+		log_info "Committing Cargo.toml version sync to ${resolved_version}"
+		git -C "$PROJECT_ROOT" add Cargo.lock core/typg-core/Cargo.toml cli/Cargo.toml py/typg-python/Cargo.toml
+		git -C "$PROJECT_ROOT" commit -m "Sync Cargo.toml versions to ${resolved_version}"
+		git -C "$PROJECT_ROOT" push
+		log_success "Version sync committed and pushed"
+	fi
+
 	# Check what needs publishing
 	local needs_publishing=false
 	local rust_needs=false
