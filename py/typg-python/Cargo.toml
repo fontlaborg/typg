@@ -1,6 +1,6 @@
 [package]
 name = "typg-python"
-version = "5.0.12"
+version = "5.0.13"
 edition = "2021"
 authors = ["FontLab"]
 description = "PyO3 bindings for typg-core (made by FontLab https://www.fontlab.com/)"
@@ -22,7 +22,7 @@ hpindex = ["typg-core/hpindex"]
 anyhow = "1.0"
 pyo3 = { version = "0.26", features = ["abi3-py310"] }
 regex = "1.11"
-typg-core = { version = "=5.0.12", path = "../../core/typg-core" }
+typg-core = { version = "=5.0.13", path = "../../core/typg-core" }
 
 [dev-dependencies]
 indoc = "2.0"
