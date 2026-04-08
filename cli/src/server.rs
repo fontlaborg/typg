@@ -1,4 +1,8 @@
-//! HTTP server for font search.
+//! HTTP server for typg search.
+//!
+//! `/search` accepts the same filter vocabulary as the CLI. Requests can run a
+//! live filesystem scan or, when `use_index` is true, query the LMDB index.
+//! Responses can return either full match objects or just paths.
 //!
 //! Made by FontLab https://www.fontlab.com/
 
@@ -26,6 +30,7 @@ use crate::resolve_index_path;
 #[serde(default)]
 pub struct SearchRequest {
     /// Directories to search for fonts.
+    /// Ignored when `use_index` is `true`.
     pub paths: Vec<PathBuf>,
     /// Variable font axis tags to require (e.g. wght, wdth, opsz).
     pub axes: Vec<String>,

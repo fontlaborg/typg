@@ -1,10 +1,10 @@
-/// LMDB-backed font index using Roaring Bitmaps for O(K) tag intersection queries.
-///
-/// Stores font metadata and an inverted tag index in an LMDB environment,
-/// enabling fast filtered lookups across large font collections without
-/// re-reading font files on every query.
-///
-/// Made by FontLab https://www.fontlab.com/
+//! LMDB-backed font index using Roaring Bitmaps for O(K) tag intersection queries.
+//!
+//! Stores font metadata and an inverted tag index in an LMDB environment,
+//! enabling fast filtered lookups across large font collections without
+//! re-reading font files on every query.
+//!
+//! Made by FontLab https://www.fontlab.com/
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -1,18 +1,41 @@
-/// typg-core: font search engine.
+/// typg-core: the engine behind fast font search.
 ///
-/// Discovers font files on the filesystem, extracts OpenType metadata,
-/// and evaluates queries against that metadata. Parallel via rayon.
+/// Point it at a folder of fonts. Tell it what you need — Arabic script support,
+/// a weight axis, ligatures, a specific glyph. It reads every font file in
+/// parallel, extracts the OpenType metadata that matters, and hands back the
+/// matches. Thousands of fonts in under a second on a modern machine.
 ///
-/// ## Modules
+/// # How a search works, end to end
 ///
-/// - [`discovery`]: Filesystem traversal to find font files
-/// - [`search`]: Metadata extraction and query evaluation
-/// - [`query`]: Query construction and filter logic
-/// - [`output`]: Result formatting (JSON, NDJSON)
-/// - [`tags`]: OpenType tag parsing utilities
-/// - [`index`]: LMDB-backed index (behind `hpindex` feature)
+/// 1. **Discovery** ([`discovery`]) walks your directories, collecting every
+///    `.ttf`, `.otf`, `.ttc`, and `.otc` file it finds. Broken symlinks and
+///    permission errors get a warning, not a crash.
 ///
-/// ## Example
+/// 2. **Search** ([`search`]) opens each file with the `read-fonts` and `skrifa`
+///    crates (Google's Rust font-parsing libraries), pulls out metadata —
+///    names, axes, features, scripts, tables, codepoints, weight/width
+///    classification — and checks it against your query. This step runs on
+///    all available CPU cores via `rayon`.
+///
+/// 3. **Query** ([`query`]) is the filter specification. Every criterion is
+///    optional; an empty query matches everything. Criteria combine with AND
+///    logic: a font must satisfy *all* of them to appear in results.
+///
+/// 4. **Output** ([`output`]) serializes results to JSON or NDJSON for
+///    downstream tools and pipelines.
+///
+/// 5. **Tags** ([`tags`]) handles parsing and formatting of OpenType tags —
+///    the four-character codes (`wght`, `liga`, `latn`, `GSUB`) that identify
+///    axes, features, scripts, and tables inside a font.
+///
+/// 6. **Index** ([`index`], behind the `hpindex` feature flag) stores extracted
+///    metadata in an LMDB database with Roaring Bitmap inverted indices.
+///    Queries that would take seconds over thousands of files on disk take
+///    milliseconds against the index.
+///
+/// # Quick example
+///
+/// Find all variable fonts with Arabic script support and a weight axis:
 ///
 /// ```rust,no_run
 /// use std::path::PathBuf;
@@ -34,7 +57,21 @@
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
-/// Made by FontLab https://www.fontlab.com/
+/// # Font vocabulary cheat sheet
+///
+/// | Term | What it means |
+/// |------|--------------|
+/// | **OpenType** | The modern font format standard. A `.ttf` or `.otf` file is an OpenType font. |
+/// | **Variable font** | A single font file that contains a continuous range of weights, widths, or other design variations. Controlled by *axes*. |
+/// | **Axis** | A dimension of variation in a variable font. `wght` = weight (thin→black), `wdth` = width (condensed→expanded), `opsz` = optical size. |
+/// | **Feature** | An OpenType layout feature like `liga` (ligatures), `smcp` (small caps), or `kern` (kerning). Controls how glyphs are substituted or positioned. |
+/// | **Script** | A writing system tag like `latn` (Latin), `arab` (Arabic), `cyrl` (Cyrillic). Tells the shaping engine which rules to apply. |
+/// | **Table** | A named data block inside the font file. `GSUB` holds glyph substitution rules, `GPOS` holds positioning rules, `OS/2` holds classification metadata. |
+/// | **TTC/OTC** | TrueType/OpenType Collection — a single file bundling multiple font faces. Each face has a numeric index. |
+/// | **cmap** | The character map table. Maps Unicode codepoints to glyph IDs — it's how the font says "I can draw this character." |
+/// | **OS/2** | A metadata table carrying weight class, width class, font family classification, and other attributes originally designed for IBM's OS/2 operating system (the name stuck). |
+///
+/// Made by FontLab <https://www.fontlab.com/>
 pub mod discovery;
 #[cfg(feature = "hpindex")]
 pub mod index;

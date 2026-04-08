@@ -1,10 +1,14 @@
-/// Query construction and evaluation for font search.
-///
-/// A [`Query`] holds filter criteria (tag lists, name regexes, codepoint sets,
-/// weight/width ranges, family class, variable-only flag). Call `matches()` to
-/// test a [`TypgFontFaceMeta`] against the query.
-///
-/// Made by FontLab https://www.fontlab.com/
+//! Query construction and evaluation for typg.
+//!
+//! A [`Query`] describes the font you want. An empty query matches every font.
+//! When multiple filters are set, they combine with AND logic: a match must
+//! satisfy every active criterion.
+//!
+//! The same query model is reused for live scans, cached searches, and indexed
+//! searches, so filter behavior stays consistent across the CLI, HTTP server,
+//! and Python bindings.
+//!
+//! Made by FontLab <https://www.fontlab.com/>
 use std::collections::{HashMap, HashSet};
 use std::ops::RangeInclusive;
 
@@ -15,165 +19,223 @@ use regex::Regex;
 use crate::search::TypgFontFaceMeta;
 use crate::tags::tag4;
 
-/// Filter criteria for font search.
+/// Filter criteria for font search. Built with chained `with_*` methods.
 ///
-/// Built via chained `with_*` methods. An empty query matches all fonts.
+/// Every field is optional and defaults to "no constraint." An empty `Query`
+/// matches all fonts. As you add criteria, the filter becomes more selective —
+/// all criteria must be satisfied (AND logic).
+///
+/// The query doesn't touch the filesystem; it only evaluates in-memory
+/// [`TypgFontFaceMeta`] structs. This makes it reusable across live search,
+/// cached search, and indexed search without modification.
 #[derive(Debug, Clone, Default)]
 pub struct Query {
-    /// Required variation axis tags.
+    /// Variation axis tags the font must define (e.g., `wght`, `wdth`).
+    /// A font matches only if it has *all* listed axes.
     axes: Vec<Tag>,
-    /// Required OpenType feature tags.
+
+    /// OpenType feature tags the font must support (e.g., `liga`, `smcp`).
+    /// Checked against features from both GSUB and GPOS tables.
     features: Vec<Tag>,
-    /// Required script tags.
+
+    /// Script tags the font must declare support for (e.g., `latn`, `arab`).
+    /// Checked against script lists in GSUB and GPOS.
     scripts: Vec<Tag>,
-    /// Required table tags.
+
+    /// Top-level table tags the font must contain (e.g., `GSUB`, `CFF `).
     tables: Vec<Tag>,
-    /// Regex patterns that must match at least one name string.
+
+    /// Regex patterns tested against the font's name strings.
+    /// At least one name must match at least one pattern.
+    /// Use for searches like "find fonts whose name contains 'Mono'."
     name_patterns: Vec<Regex>,
-    /// Unicode codepoints the font must cover.
+
+    /// Unicode codepoints the font must cover (via its `cmap` table).
+    /// The font must have glyphs for *all* listed codepoints.
     codepoints: Vec<char>,
-    /// If true, only match variable fonts.
+
+    /// When `true`, only variable fonts (those with an `fvar` table) match.
+    /// When `false` (default), both static and variable fonts can match.
     variable_only: bool,
-    /// Required OS/2 weight class range.
+
+    /// OS/2 `usWeightClass` must fall within this range.
+    /// Standard range: 100 (Thin) to 900 (Black). `None` = no constraint.
     weight_range: Option<RangeInclusive<u16>>,
-    /// Required OS/2 width class range.
+
+    /// OS/2 `usWidthClass` must fall within this range.
+    /// Standard range: 1 (UltraCondensed) to 9 (UltraExpanded). `None` = no constraint.
     width_range: Option<RangeInclusive<u16>>,
-    /// Required OS/2 family class filter.
+
+    /// OS/2 family class (major, optionally subclass) the font must match.
+    /// Example: major=8 matches all sans-serif fonts; major=8, subclass=1
+    /// matches only IBM Neo-Grotesque Gothic. `None` = no constraint.
     family_class: Option<FamilyClassFilter>,
-    /// Regex patterns that must match creator-related name strings.
+
+    /// Regex patterns tested against creator/provenance name strings
+    /// (copyright, trademark, manufacturer, designer, description, URLs,
+    /// license text). At least one creator string must match at least one
+    /// pattern.
     creator_patterns: Vec<Regex>,
-    /// Regex patterns that must match license-related name strings.
+
+    /// Regex patterns tested against license-specific name strings
+    /// (copyright, license description, license URL). At least one license
+    /// string must match at least one pattern.
     license_patterns: Vec<Regex>,
 }
 
 impl Query {
+    /// Create an empty query that matches all fonts.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Require these variation axes. A font must define *all* of them.
+    /// Example: `vec![tag4("wght")?, tag4("wdth")?]`
     pub fn with_axes(mut self, axes: Vec<Tag>) -> Self {
         self.axes = axes;
         self
     }
 
+    /// Require these OpenType features. The font must list *all* of them.
+    /// Example: `vec![tag4("liga")?, tag4("smcp")?]`
     pub fn with_features(mut self, features: Vec<Tag>) -> Self {
         self.features = features;
         self
     }
 
+    /// Require these script tags. The font must declare support for *all*.
+    /// Example: `vec![tag4("latn")?, tag4("cyrl")?]`
     pub fn with_scripts(mut self, scripts: Vec<Tag>) -> Self {
         self.scripts = scripts;
         self
     }
 
+    /// Require these top-level tables. The font file must contain *all*.
+    /// Example: `vec![tag4("GSUB")?, tag4("GPOS")?]`
     pub fn with_tables(mut self, tables: Vec<Tag>) -> Self {
         self.tables = tables;
         self
     }
 
+    /// Require at least one font name to match at least one regex pattern.
+    /// Patterns are tested against all name strings (family, full, PostScript, etc.).
     pub fn with_name_patterns(mut self, patterns: Vec<Regex>) -> Self {
         self.name_patterns = patterns;
         self
     }
 
+    /// Require the font to have glyphs for *all* of these Unicode codepoints.
+    /// Example: `vec!['A', 'B', 'ñ']`
     pub fn with_codepoints(mut self, cps: Vec<char>) -> Self {
         self.codepoints = cps;
         self
     }
 
+    /// When `true`, only variable fonts match. Default: `false` (both match).
     pub fn require_variable(mut self, yes: bool) -> Self {
         self.variable_only = yes;
         self
     }
 
+    /// Require OS/2 weight class within this range. Example: `Some(300..=700)`.
     pub fn with_weight_range(mut self, range: Option<RangeInclusive<u16>>) -> Self {
         self.weight_range = range;
         self
     }
 
+    /// Require OS/2 width class within this range. Example: `Some(3..=7)`.
     pub fn with_width_range(mut self, range: Option<RangeInclusive<u16>>) -> Self {
         self.width_range = range;
         self
     }
 
+    /// Require a specific OS/2 family class (and optionally subclass).
     pub fn with_family_class(mut self, class: Option<FamilyClassFilter>) -> Self {
         self.family_class = class;
         self
     }
 
+    /// Require at least one creator string to match at least one regex.
     pub fn with_creator_patterns(mut self, patterns: Vec<Regex>) -> Self {
         self.creator_patterns = patterns;
         self
     }
 
+    /// Require at least one license string to match at least one regex.
     pub fn with_license_patterns(mut self, patterns: Vec<Regex>) -> Self {
         self.license_patterns = patterns;
         self
     }
 
-    // Accessor methods for use by the high-performance index module.
-
-    /// Get the required axis tags.
+    /// The required axis tags, if any.
     pub fn axes(&self) -> &[Tag] {
         &self.axes
     }
 
-    /// Get the required feature tags.
+    /// The required feature tags, if any.
     pub fn features(&self) -> &[Tag] {
         &self.features
     }
 
-    /// Get the required script tags.
+    /// The required script tags, if any.
     pub fn scripts(&self) -> &[Tag] {
         &self.scripts
     }
 
-    /// Get the required table tags.
+    /// The required table tags, if any.
     pub fn tables(&self) -> &[Tag] {
         &self.tables
     }
 
-    /// Get the name patterns.
+    /// The name regex patterns, if any.
     pub fn name_patterns(&self) -> &[Regex] {
         &self.name_patterns
     }
 
-    /// Get the required codepoints.
+    /// The required codepoints, if any.
     pub fn codepoints(&self) -> &[char] {
         &self.codepoints
     }
 
-    /// Check if variable fonts are required.
+    /// Whether only variable fonts are accepted.
     pub fn requires_variable(&self) -> bool {
         self.variable_only
     }
 
-    /// Get the weight range filter.
+    /// The weight class range constraint, if set.
     pub fn weight_range(&self) -> Option<&RangeInclusive<u16>> {
         self.weight_range.as_ref()
     }
 
-    /// Get the width range filter.
+    /// The width class range constraint, if set.
     pub fn width_range(&self) -> Option<&RangeInclusive<u16>> {
         self.width_range.as_ref()
     }
 
-    /// Get the family class filter.
+    /// The family class constraint, if set.
     pub fn family_class(&self) -> Option<&FamilyClassFilter> {
         self.family_class.as_ref()
     }
 
-    /// Get the creator patterns.
+    /// The creator/provenance regex patterns, if any.
     pub fn creator_patterns(&self) -> &[Regex] {
         &self.creator_patterns
     }
 
-    /// Get the license patterns.
+    /// The license regex patterns, if any.
     pub fn license_patterns(&self) -> &[Regex] {
         &self.license_patterns
     }
 
-    /// Returns true if `meta` satisfies all criteria in this query.
+    /// Test a font's metadata against every criterion in this query.
+    ///
+    /// Returns `true` only if *all* active criteria are satisfied.
+    /// Criteria that aren't set (empty vecs, `None` ranges) are skipped.
+    ///
+    /// Evaluation order is roughly cheapest-first: boolean checks, then
+    /// tag set intersections, then numeric ranges, then codepoint coverage,
+    /// then regex matching (most expensive). Short-circuits on the first
+    /// failure.
     pub fn matches(&self, meta: &TypgFontFaceMeta) -> bool {
         if self.variable_only && !meta.is_variable {
             return false;
@@ -266,6 +328,8 @@ impl Query {
     }
 }
 
+/// Check that `haystack` contains every tag in `needles` (set subset check).
+/// Returns `true` if `needles` is empty (vacuous truth — no requirements).
 fn contains_all_tags(haystack: &[Tag], needles: &[Tag]) -> bool {
     if needles.is_empty() {
         return true;
@@ -327,6 +391,11 @@ pub fn parse_tag_list(raw: &[String]) -> Result<Vec<Tag>> {
     raw.iter().map(|s| tag4(s)).collect()
 }
 
+/// Filter for the OS/2 family-class field.
+///
+/// `major` selects a broad class such as serif, sans-serif, or script.
+/// `subclass`, when present, narrows the match to one subclass inside that
+/// major class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FamilyClassFilter {
     pub major: u8,

@@ -1,41 +1,87 @@
-/// Filesystem font discovery.
+/// Filesystem font discovery — the first step in every search.
 ///
-/// Walks directory trees to find font files (TTF, OTF, TTC, OTC).
-/// Inaccessible directories are skipped with a warning to stderr.
+/// Before you can query font metadata, you need to know where the fonts live.
+/// This module walks directory trees, identifies font files by extension, and
+/// hands back a list of paths for the search engine to open.
 ///
-/// Made by FontLab https://www.fontlab.com/
+/// Recognized extensions: `.ttf` (TrueType), `.otf` (OpenType/CFF),
+/// `.ttc` (TrueType Collection), `.otc` (OpenType Collection).
+/// WOFF/WOFF2 web fonts are not included — they're compressed containers
+/// meant for browsers, not typically installed on the system.
+///
+/// Directories that can't be read (permissions, broken mounts, dangling
+/// symlinks) are silently skipped. The walk continues. A single locked
+/// folder shouldn't kill a search across thousands of fonts.
+///
+/// Made by FontLab <https://www.fontlab.com/>
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 use walkdir::WalkDir;
 
-/// Reference to a discovered font file on disk.
+/// A font file found on disk during discovery.
+///
+/// At this stage we only know *where* the file is, not what's inside it.
+/// Metadata extraction happens later in the [`search`](crate::search) module.
+/// A TTC/OTC collection file appears as a single `TypgFontSourceRef` here;
+/// the search module will enumerate individual faces within it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypgFontSourceRef {
-    /// Path to the font file.
+    /// Absolute (or as-given) path to the font file on disk.
     pub path: PathBuf,
 }
 
 /// Trait for font discovery backends.
+///
+/// The default implementation ([`PathDiscovery`]) walks the local filesystem.
+/// Alternative backends could scan network shares, font servers, or package
+/// managers — anything that can produce a list of font file paths.
 pub trait FontDiscovery {
-    /// Return all font files found by this backend.
+    /// Scan for font files and return their locations.
+    ///
+    /// Implementations should be resilient: skip inaccessible paths rather
+    /// than aborting the entire scan. Return `Err` only for truly fatal
+    /// problems (e.g., the root path itself doesn't exist).
     fn discover(&self) -> Result<Vec<TypgFontSourceRef>>;
 }
 
 /// Discovers fonts by walking filesystem paths.
 ///
-/// Recurses into directories, optionally follows symlinks. Recognizes
-/// font files by extension: `.ttf`, `.otf`, `.ttc`, `.otc`.
+/// Give it one or more root directories. It recurses into every subdirectory,
+/// checks each file's extension, and collects anything that looks like a font.
+///
+/// Symlink behavior matters in practice: macOS `/System/Library/Fonts` contains
+/// symlinks into sealed system volumes, and many Linux setups symlink font
+/// directories across partitions. Enable [`follow_symlinks`](Self::follow_symlinks)
+/// when you want to reach fonts behind those links. Leave it off (the default)
+/// to avoid infinite loops from circular symlinks.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use typg_core::discovery::{PathDiscovery, FontDiscovery};
+///
+/// let fonts = PathDiscovery::new(["/usr/share/fonts", "/home/me/.fonts"])
+///     .follow_symlinks(true)
+///     .discover()?;
+///
+/// println!("Found {} font files", fonts.len());
+/// # Ok::<(), anyhow::Error>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct PathDiscovery {
-    /// Root directories to walk.
+    /// Root directories to walk. Each is traversed recursively.
     roots: Vec<PathBuf>,
-    /// Whether to follow symlinks during traversal.
+    /// Follow symbolic links during traversal. Off by default to prevent
+    /// infinite loops from circular symlinks.
     follow_symlinks: bool,
 }
 
 impl PathDiscovery {
-    /// Create a new discovery for the given root paths.
+    /// Create a discovery instance for the given root paths.
+    ///
+    /// Each path should be a directory. If you pass a file path, `walkdir`
+    /// will yield just that one file (which is fine for single-file checks).
     pub fn new<I, P>(roots: I) -> Self
     where
         I: IntoIterator<Item = P>,
@@ -56,10 +102,14 @@ impl PathDiscovery {
 }
 
 impl FontDiscovery for PathDiscovery {
-    /// Walk all root paths and return discovered font files.
+    /// Walk all root paths and return every font file found.
     ///
-    /// Directories that can't be read (permission denied, broken symlinks, etc.)
-    /// are skipped with a warning to stderr. The walk continues.
+    /// The walk is resilient: directories that can't be read (permission
+    /// denied, broken symlinks, vanished network mounts) are silently
+    /// skipped. One unreadable folder won't abort a scan of thousands.
+    ///
+    /// Returns `Err` only if a root path itself doesn't exist — that's
+    /// likely a typo, and the caller should know about it.
     fn discover(&self) -> Result<Vec<TypgFontSourceRef>> {
         let mut found = Vec::new();
 
@@ -87,7 +137,14 @@ impl FontDiscovery for PathDiscovery {
     }
 }
 
-/// Check whether a path has a recognized font file extension.
+/// Check whether a file has a recognized font extension.
+///
+/// Recognized: `.ttf` (TrueType), `.otf` (OpenType/CFF), `.ttc` and `.otc`
+/// (collection files that bundle multiple faces in one file).
+/// Case-insensitive — `ARIAL.TTF` and `arial.ttf` both match.
+///
+/// Not recognized: `.woff`, `.woff2` (web font containers), `.dfont`
+/// (legacy macOS resource-fork format), `.fon` (Windows bitmap fonts).
 fn is_font(path: &Path) -> bool {
     let ext = match path.extension().and_then(|e| e.to_str()) {
         Some(ext) => ext.to_ascii_lowercase(),

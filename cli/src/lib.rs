@@ -1,4 +1,13 @@
-//! typg CLI — font search and cache management.
+//! typg CLI.
+//!
+//! The CLI exposes three user-facing modes:
+//! - `find` for live scans over directories,
+//! - `cache` for reusing saved metadata or an LMDB index,
+//! - `serve` for HTTP access to the same query model.
+//!
+//! The command-line flags map directly onto the shared `Query` type in
+//! `typg-core`, so the same filter semantics apply across live, cached, HTTP,
+//! and Python entry points.
 //!
 //! Made by FontLab https://www.fontlab.com/
 
