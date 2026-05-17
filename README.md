@@ -15,6 +15,49 @@ Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typ
 - Creator and license regex search (`-c`/`-l`) across name table fields (copyright, trademark, manufacturer, designer, description, URLs, license).
 - Docs/spec cover planned parity (`docs/spec.md`); architecture notes live in `ARCHITECTURE.md`.
 
+## How font search works
+
+Every font file is a binary container of named *tables* — think of them as
+embedded databases. typg opens each file, reads the tables it cares about,
+builds a metadata record, and evaluates your query against it. No full-text
+indexing, no image rendering — just table reads and tag comparisons.
+
+**What's in the tables:**
+
+| Table | Contains | typg uses it for |
+|-------|----------|-----------------|
+| `name` | Human-readable strings: family name, designer, copyright | `--name`, `--creator`, `--license` filters |
+| `OS/2` | Weight class (100=Thin → 900=Black), width class (1–9), family class (serif vs sans-serif) | `--weight`, `--width`, `--family-class` filters |
+| `cmap` | Mapping from Unicode codepoints to glyphs — the font's promise that it can draw a character | `--codepoints`, `--text` filters |
+| `fvar` | Variable font axes: `wght` (weight), `wdth` (width), `opsz` (optical size), `ital`, `slnt` | `--axes`, `--variable` filters |
+| `GSUB` | Glyph substitution rules — features like `liga` (ligatures), `smcp` (small capitals), `onum` (oldstyle numerals) | `--features` filter |
+| `GPOS` | Glyph positioning rules — features like `kern` (kerning), `mark` (diacritics placement) | `--features` filter |
+| `GSUB`/`GPOS` script lists | Writing systems with dedicated shaping rules: `latn` (Latin), `cyrl` (Cyrillic), `arab` (Arabic), `deva` (Devanagari) | `--scripts` filter |
+
+**A query in plain English:** "Find me every font in `~/Fonts` that supports
+Cyrillic (`-s cyrl`), has small capitals (`-f smcp`), and is heavier than
+Regular (`-w 500-900`)":
+
+```bash
+typg find -s cyrl -f smcp -w 500-900 ~/Fonts
+```
+
+typg opens each font file, checks the `GSUB`/`GPOS` script list for `cyrl`,
+checks the feature list for `smcp`, reads `usWeightClass` from `OS/2`, and
+returns only the fonts satisfying all three. With rayon, it does this across
+all CPU cores simultaneously.
+
+**Scripts vs. codepoints:** A font can *draw* Cyrillic characters (they're in
+its `cmap`) without having *shaping rules* for Cyrillic (no `cyrl` in its
+script list). `-s cyrl` finds fonts with proper typographic shaping support
+— kerning, contextual alternates, the works. `--text "Привет"` finds fonts
+that can at least render those characters.
+
+**Variable fonts:** A single variable font file replaces an entire family.
+Instead of separate Bold/Regular/Light files, the `fvar` table defines
+continuous axes. `--variable` matches only these multi-axis files;
+`--axes wght,wdth` matches those with both weight and width axes.
+
 ## Install (source, today)
 ```bash
 # Rust CLI (quick install)

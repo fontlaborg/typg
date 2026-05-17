@@ -406,6 +406,10 @@ enum ColorChoice {
 }
 
 /// Parse CLI arguments and dispatch to the appropriate handler.
+///
+/// This is the single entry point called from `main`. Every subcommand
+/// (`find`, `cache add/list/find/clean/info`, `serve`) passes through here.
+/// Errors bubble up as `anyhow::Error` and are printed by `main` before exit.
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     let quiet = cli.quiet;
@@ -423,7 +427,20 @@ pub fn run() -> Result<()> {
     }
 }
 
-/// Search directories for matching fonts, streaming results where possible.
+/// Live-scan directories for fonts matching the user's query.
+///
+/// The pipeline is: gather paths → build query → run search → write output.
+///
+/// Output mode determines whether we can stream (NDJSON, plain, paths) or
+/// must collect first (JSON array, columns, count). JSON and columns need all
+/// results before writing because JSON requires a closing `]` and columns need
+/// to measure the longest path for alignment. Everything else streams — the
+/// first matches appear on stdout while the scan is still running.
+///
+/// The `--collections` flag controls deduplication: by default we emit each
+/// *file* once (even if it contains many faces), because most downstream tools
+/// want paths. With `--collections` you get one line per *face* — useful when
+/// you need the `path#index` notation to address individual faces inside a TTC.
 fn run_find(args: FindArgs) -> Result<()> {
     if matches!(args.jobs, Some(0)) {
         return Err(anyhow!("--jobs must be at least 1"));
@@ -444,7 +461,9 @@ fn run_find(args: FindArgs) -> Result<()> {
 
     let output = OutputFormat::from_find(&args);
 
-    // Formats that need all results before writing
+    // JSON arrays and column output need all results in memory first.
+    // JSON needs a closing `]`; columns need to measure the longest path for
+    // alignment. Count-only is cheap but also needs the full set.
     if args.count_only || output.json || output.columns {
         let matches = search(&paths, &query, &opts)?;
         if args.count_only {
@@ -560,7 +579,10 @@ fn write_matches(matches: &[TypgFontFaceMatch], format: &OutputFormat) -> Result
     Ok(())
 }
 
-/// Build a `Query` from the CLI filter arguments.
+/// Translate `FindArgs` into a `Query`.
+///
+/// Thin adapter — unpacks the struct fields and delegates to the shared
+/// `build_query_from_parts` so `cache find` can reuse the same logic.
 fn build_query(args: &FindArgs) -> Result<Query> {
     build_query_from_parts(
         &args.axes,
@@ -579,6 +601,14 @@ fn build_query(args: &FindArgs) -> Result<Query> {
     )
 }
 
+/// Shared query builder used by both `find` and `cache find`.
+///
+/// Parses every raw string argument into typed values, then chains the
+/// `Query` builder methods. The `text` argument is a convenience shortcut:
+/// its characters are appended to the explicit `codepoints` list so
+/// `--text "Ñoño"` is equivalent to listing every codepoint in that string.
+///
+/// All criteria are AND-combined — the more you add, the narrower the match.
 #[allow(clippy::too_many_arguments)]
 fn build_query_from_parts(
     axes: &[String],
@@ -662,6 +692,18 @@ fn parse_optional_family_class(raw: &Option<String>) -> Result<Option<FamilyClas
     }
 }
 
+/// Collect the final list of paths to search, merging all input sources.
+///
+/// Three sources combine in order:
+/// 1. `--stdin-paths` flag: read one path per line from stdin before any
+///    positional args. Useful when piping from `find` or `fd`.
+/// 2. Positional paths: each is appended as-is, except the special value `-`
+///    which triggers another stdin read (matches Unix convention).
+/// 3. `--system-fonts` flag: appends OS-default font directories. On macOS
+///    that's `/System/Library/Fonts`, `/Library/Fonts`, and `~/Library/Fonts`.
+///    On Linux it's `/usr/share/fonts` and `~/.local/share/fonts`.
+///    On Windows it's `%SYSTEMROOT%\Fonts` and the per-user fonts folder.
+///    Override with `TYPOG_SYSTEM_FONT_DIRS` (colon-separated on Unix, semicolon on Windows).
 fn gather_paths(
     raw_paths: &[PathBuf],
     read_stdin: bool,
@@ -713,6 +755,17 @@ fn read_paths_from(reader: &mut impl BufRead) -> Result<Vec<PathBuf>> {
     Ok(paths)
 }
 
+/// Return the OS-default directories where fonts are installed.
+///
+/// `TYPOG_SYSTEM_FONT_DIRS` overrides the defaults entirely (colon-separated
+/// on Unix, semicolon accepted on both platforms). Non-existent paths are
+/// filtered out silently — a freshly installed OS might not have a per-user
+/// fonts folder yet. Returns an error only when every candidate is missing.
+///
+/// Platform defaults (compiled in, not checked at startup):
+/// - macOS: `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts`
+/// - Linux: `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.local/share/fonts`
+/// - Windows: `%SYSTEMROOT%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts`
 fn system_font_roots() -> Result<Vec<PathBuf>> {
     if let Ok(raw) = env::var("TYPOG_SYSTEM_FONT_DIRS") {
         let mut overrides: Vec<PathBuf> = raw
@@ -775,6 +828,12 @@ fn system_font_roots() -> Result<Vec<PathBuf>> {
     Ok(candidates)
 }
 
+/// Write matches as plain text: one path (or path#index) per line.
+///
+/// Without `--collections`, each *file* path appears at most once — faces
+/// from the same TTC/OTC are deduplicated down to the container path.
+/// With `--collections`, every face gets its own line with a `#N` suffix,
+/// allowing callers to address individual faces inside a collection file.
 fn write_plain(
     matches: &[TypgFontFaceMatch],
     mut w: impl Write,
@@ -798,6 +857,13 @@ fn write_plain(
     Ok(())
 }
 
+/// Write bare file paths, one per line, no color or metadata.
+///
+/// This is the `--paths` output mode, designed for piping. The output is
+/// stable: each path appears exactly once (unless `--collections` is set,
+/// in which case TTC faces appear as `path#0`, `path#1`, etc.).
+/// Downstream tools like `typf`, `fontlift`, or shell loops can consume
+/// this directly.
 fn write_paths(
     matches: &[TypgFontFaceMatch],
     mut w: impl Write,
@@ -818,6 +884,16 @@ fn write_paths(
     Ok(())
 }
 
+/// Write a human-readable aligned column layout: path | name | tag counts.
+///
+/// Requires all matches in memory first (to measure the longest path and name
+/// for alignment). Each row shows:
+///   - File path (or path#index with `--collections`), cyan
+///   - First name string from the font's `name` table, yellow
+///   - Summary counts: axes, features, scripts, tables, plus "var" if variable, green
+///
+/// Column widths are clamped to 120 (path) and 80 (name) to stay readable
+/// on standard terminal widths even with very long paths.
 fn write_columns(
     matches: &[TypgFontFaceMatch],
     mut w: impl Write,

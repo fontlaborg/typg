@@ -400,6 +400,14 @@ publish_all() {
 	log_info "Dry run: $DRY_RUN"
 	log_info "Build type: $BUILD_TYPE"
 
+	# Bump version tag via gitnextver
+	if [[ "$DRY_RUN" != "true" ]]; then
+		log_info "Bumping version tag via gitnextver..."
+		uvx gitnextver@latest
+	else
+		log_dry "Would run: uvx gitnextver@latest"
+	fi
+
 	# Check repository state
 	check_repo_clean
 
