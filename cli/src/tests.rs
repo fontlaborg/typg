@@ -1,4 +1,5 @@
 //! Unit tests for typg CLI.
+//! Made by FontLab https://www.fontlab.com/
 
 use super::*;
 use clap::CommandFactory;
@@ -298,6 +299,39 @@ fn help_output_includes_new_flags() {
     assert!(help.contains("--jobs <JOBS>"));
     assert!(help.contains("--weight <WEIGHT>"));
     assert!(help.contains("--width <WIDTH>"));
+}
+
+#[test]
+fn help_output_lists_details_keywords() {
+    let mut root = Cli::command();
+    let find = root
+        .find_subcommand_mut("find")
+        .expect("find command present");
+    let help = find.render_long_help().to_string();
+    assert!(help.contains("path"), "Help should contain 'path'");
+    assert!(help.contains("path_r"), "Help should contain 'path_r'");
+    assert!(help.contains("fmt"), "Help should contain 'fmt'");
+    assert!(help.contains("fname"), "Help should contain 'fname'");
+    assert!(help.contains("sname"), "Help should contain 'sname'");
+    assert!(help.contains("psname"), "Help should contain 'psname'");
+    assert!(help.contains("tfname"), "Help should contain 'tfname'");
+    assert!(help.contains("lfname"), "Help should contain 'lfname'");
+    assert!(help.contains("tsname"), "Help should contain 'tsname'");
+    assert!(help.contains("lsname"), "Help should contain 'lsname'");
+    assert!(help.contains("var"), "Help should contain 'var'");
+    assert!(help.contains("wt"), "Help should contain 'wt'");
+    assert!(help.contains("wd"), "Help should contain 'wd'");
+    assert!(help.contains("panf"), "Help should contain 'panf'");
+    assert!(help.contains("axes"), "Help should contain 'axes'");
+    assert!(help.contains("axes_n"), "Help should contain 'axes_n'");
+    assert!(help.contains("fea"), "Help should contain 'fea'");
+    assert!(help.contains("fea_n"), "Help should contain 'fea_n'");
+    assert!(help.contains("scr"), "Help should contain 'scr'");
+    assert!(help.contains("scr_n"), "Help should contain 'scr_n'");
+    assert!(help.contains("tab"), "Help should contain 'tab'");
+    assert!(help.contains("tab_n"), "Help should contain 'tab_n'");
+    assert!(help.contains("crea"), "Help should contain 'crea'");
+    assert!(help.contains("lic"), "Help should contain 'lic'");
 }
 
 #[test]

@@ -170,7 +170,7 @@ struct OutputArgs {
     #[arg(long = "color", default_value_t = ColorChoice::Auto, value_enum)]
     color: ColorChoice,
 
-    /// Output custom details (comma-separated list of properties or preset integer 0..9)
+    /// Output custom details (comma-separated list of keywords: path, path_r, fmt, fname, sname, psname, tfname, lfname, tsname, lsname, var/variable/is_var, wt/weight, wd/width, panf/family_class, axes, axes_n, fea, fea_n, scr/scripts, scr_n/scripts_n, tab/tables, tab_n/tables_n, crea/creator_names, lic/license_names, or preset 0..9)
     #[arg(short = 'd', long = "details")]
     details: Option<String>,
 }
@@ -418,7 +418,7 @@ struct FindArgs {
     #[arg(long = "color", default_value_t = ColorChoice::Auto, value_enum)]
     color: ColorChoice,
 
-    /// Output custom details (comma-separated list of properties or preset integer 0..9)
+    /// Output custom details (comma-separated list of keywords: path, path_r, fmt, fname, sname, psname, tfname, lfname, tsname, lsname, var/variable/is_var, wt/weight, wd/width, panf/family_class, axes, axes_n, fea, fea_n, scr/scripts, scr_n/scripts_n, tab/tables, tab_n/tables_n, crea/creator_names, lic/license_names, or preset 0..9)
     #[arg(short = 'd', long = "details")]
     details: Option<String>,
 }
