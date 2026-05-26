@@ -3,6 +3,12 @@
 made by FontLab https://www.fontlab.com/
 
 ## v0.0.0 (unreleased)
+- **Multi-wise `--scripts` matching**:
+  - `--scripts` now accepts both ISO 15924 (`Latn`, `Deva`) and OpenType (`latn`, `dev2`) tags, case-insensitively.
+  - Each input resolves to an OpenType tag *group* (Indic scripts expand to all shaping variants, e.g. `deva` → `deva`/`dev2`/`dev3`) plus a Unicode script.
+  - A font matches if it supports *every* requested script via a GSUB/GPOS group tag, **or** its cmap covers *every* requested Unicode script (≥4 codepoints each). The OpenType and Unicode paths are evaluated whole, not mixed per-script.
+  - New `typg-core::scriptmap` module (`resolve_scripts`, `ScriptRequirement`); `Query::with_scripts` now takes resolved requirements. Added the `unicode-script` dependency.
+  - The `hpindex` index path verifies scripts per-candidate (no longer prefilters on OpenType tags only), so cmap-only matches are no longer dropped.
 - **Details Keyword Renaming**:
   - Strictly renamed details keywords: `is_var`/`variable` to `var`, `weight` to `wt`, `width` to `wd`, `family_class` to `panf`, `scripts` to `scr`, `scripts_n` to `scr_n`, `tables` to `tab`, `tables_n` to `tab_n`, `creator_names` to `crea`, and `license_names` to `lic` in custom details formatting.
   - Completely removed support for the old keyword aliases.

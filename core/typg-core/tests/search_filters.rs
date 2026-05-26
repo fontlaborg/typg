@@ -1,4 +1,5 @@
 use typg_core::query::{FamilyClassFilter, Query};
+use typg_core::scriptmap::resolve_scripts;
 use typg_core::search::TypgFontFaceMeta;
 use typg_core::tags::tag4;
 
@@ -40,7 +41,7 @@ fn matches_when_all_filters_satisfied() {
     let query = Query::new()
         .with_axes(vec![tag4("wght").unwrap()])
         .with_features(vec![tag4("liga").unwrap()])
-        .with_scripts(vec![tag4("latn").unwrap()])
+        .with_scripts(resolve_scripts(&["latn".to_string()]))
         .with_tables(vec![tag4("GPOS").unwrap()])
         .with_codepoints(vec!['A'])
         .require_variable(true)
@@ -59,6 +60,106 @@ fn matches_when_all_filters_satisfied() {
         Some((8, 0)),
     );
 
+    assert!(query.matches(&meta));
+}
+
+#[test]
+fn scripts_match_via_opentype_tag_without_cmap_coverage() {
+    // Font declares the OpenType `arab` script but has no Arabic codepoints.
+    // The OpenType path alone must satisfy the requirement.
+    let query = Query::new().with_scripts(resolve_scripts(&["arab".to_string()]));
+    let meta = metadata_with(
+        "Arabic",
+        &[],
+        &[],
+        &["arab"],
+        &[],
+        &['A', 'B'],
+        false,
+        None,
+        None,
+        None,
+    );
+    assert!(query.matches(&meta));
+}
+
+#[test]
+fn scripts_match_via_cmap_coverage_without_opentype_tag() {
+    // No GSUB/GPOS script tags, but the cmap covers ≥4 Latin codepoints.
+    let query = Query::new().with_scripts(resolve_scripts(&["latn".to_string()]));
+    let meta = metadata_with(
+        "Latin",
+        &[],
+        &[],
+        &[],
+        &[],
+        &['A', 'B', 'C', 'D'],
+        false,
+        None,
+        None,
+        None,
+    );
+    assert!(query.matches(&meta));
+}
+
+#[test]
+fn scripts_fail_below_minimum_cmap_coverage() {
+    // Only three Latin codepoints and no OpenType tag: neither path is satisfied.
+    let query = Query::new().with_scripts(resolve_scripts(&["latn".to_string()]));
+    let meta = metadata_with(
+        "Latin",
+        &[],
+        &[],
+        &[],
+        &[],
+        &['A', 'B', 'C'],
+        false,
+        None,
+        None,
+        None,
+    );
+    assert!(!query.matches(&meta));
+}
+
+#[test]
+fn scripts_use_whole_or_not_per_script_mixing() {
+    // Font has OpenType `latn` (but no Latin cmap) and Greek cmap coverage
+    // (but no OpenType `grek`). For `latn,grek` neither the all-OpenType path
+    // nor the all-Unicode path is fully satisfied, so the font must not match.
+    let query =
+        Query::new().with_scripts(resolve_scripts(&["latn".to_string(), "grek".to_string()]));
+    let meta = metadata_with(
+        "Mixed",
+        &[],
+        &[],
+        &["latn"],
+        &[],
+        &['α', 'β', 'γ', 'δ'],
+        false,
+        None,
+        None,
+        None,
+    );
+    assert!(!query.matches(&meta));
+}
+
+#[test]
+fn scripts_iso_input_resolves_like_opentype() {
+    // ISO 15924 `Deva` must resolve to the Devanagari OpenType group, so a font
+    // declaring the `dev2` shaping tag satisfies it.
+    let query = Query::new().with_scripts(resolve_scripts(&["Deva".to_string()]));
+    let meta = metadata_with(
+        "Hindi",
+        &[],
+        &[],
+        &["dev2"],
+        &[],
+        &[],
+        false,
+        None,
+        None,
+        None,
+    );
     assert!(query.matches(&meta));
 }
 

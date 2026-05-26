@@ -23,7 +23,8 @@ Map typg’s planned behavior against the two reference CLIs (fontgrep, fontgrep
 ## Core search use-cases
 - **Family/name lookup**: regex/substring matches against full name and postscript name.
 - **Variation axes presence**: ensure fonts define requested axis tags (wght, wdth, ital, opsz, etc.).
-- **OpenType features/scripts**: filter by GSUB/GPOS feature tags and script systems present.
+- **OpenType features**: filter by GSUB/GPOS feature tags present.
+- **Scripts (multi-wise)**: `--scripts` accepts ISO 15924 or OpenType tags. Each input is resolved to (a) a group of OpenType script tags — Indic scripts expand to all shaping variants, e.g. `deva` → `deva`/`dev2`/`dev3` — and (b) a Unicode script. A font supports the requested list if it declares *every* script via a GSUB/GPOS group tag, **or** its cmap covers *every* requested Unicode script (≥4 codepoints each). The two paths are evaluated whole, not mixed per-script.
 - **Unicode coverage**: accept codepoints, ranges, or text samples; return only fonts covering all requested characters.
 - **Table presence**: require tables like GPOS/GSUB/GDEF/BASE/OS/2.
 - **Classification filters**: OS/2 weight/width/family-class shorthands mapped onto `usWeightClass`/`usWidthClass` and `sFamilyClass` (major or `major.subclass`, with name aliases like `sans`, `ornamental`, `script`).

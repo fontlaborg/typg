@@ -21,6 +21,7 @@ use typg_core::query::{
     parse_codepoint_list, parse_family_class, parse_tag_list, parse_u16_range, FamilyClassFilter,
     Query,
 };
+use typg_core::scriptmap::resolve_scripts;
 use typg_core::search::{
     filter_cached, search, SearchOptions, TypgFontFaceMatch, TypgFontFaceMeta, TypgFontSource,
 };
@@ -474,7 +475,7 @@ fn build_query(
 ) -> Result<Query> {
     let axes = parse_tag_list(&axes.unwrap_or_default())?;
     let features = parse_tag_list(&features.unwrap_or_default())?;
-    let scripts = parse_tag_list(&scripts.unwrap_or_default())?;
+    let scripts = resolve_scripts(&scripts.unwrap_or_default());
     let tables = parse_tag_list(&tables.unwrap_or_default())?;
     let name_patterns = compile_patterns(&names.unwrap_or_default())?;
     let creator_patterns = compile_patterns(&creator.unwrap_or_default())?;

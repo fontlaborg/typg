@@ -366,11 +366,18 @@ impl<'a> IndexReader<'a> {
         // Phase 1: Use inverted indices to get candidate bitmap.
         let candidates = self.get_candidate_bitmap(query)?;
 
+        // Precompute the set of fonts satisfying *every* script requirement via
+        // the OpenType path: the intersection (across requirements) of the union
+        // (across each requirement's OpenType tag group) of tag bitmaps.
+        let ot_all = self.ot_all_bitmap(query)?;
+
         // Phase 2: Filter candidates and hydrate metadata.
         let mut matches = Vec::new();
         for font_id in candidates.iter() {
             if let Some(meta) = self.get_metadata(font_id as u64)? {
-                if self.passes_filters(&meta, query)? {
+                if self.passes_filters(&meta, query)?
+                    && self.scripts_pass(font_id, &meta, query, ot_all.as_ref())?
+                {
                     matches.push(hydrate_match(&meta));
                 }
             }
@@ -422,11 +429,11 @@ impl<'a> IndexReader<'a> {
             result = Some(intersect_optional(result, bitmap));
         }
 
-        // Intersect script tag bitmaps.
-        for tag in query.scripts() {
-            let bitmap = self.get_tag_bitmap(tag_to_u32(*tag))?;
-            result = Some(intersect_optional(result, bitmap));
-        }
+        // Note: script requirements are NOT prefiltered here. Under the
+        // multi-wise `--scripts` semantics a font can satisfy a script via its
+        // cmap (Unicode path) without declaring the OpenType tag, so an
+        // OT-tag bitmap intersection would wrongly exclude such fonts. Scripts
+        // are verified per-candidate in `find` instead.
 
         // Intersect table tag bitmaps.
         for tag in query.tables() {
@@ -474,6 +481,63 @@ impl<'a> IndexReader<'a> {
     }
 
     /// Check if metadata passes query filters that can't use inverted indices.
+    /// Set of font ids that satisfy *every* script requirement via the
+    /// OpenType path. `None` when the query has no script requirements.
+    fn ot_all_bitmap(&self, query: &Query) -> Result<Option<RoaringBitmap>> {
+        let reqs = query.scripts();
+        if reqs.is_empty() {
+            return Ok(None);
+        }
+        let mut acc: Option<RoaringBitmap> = None;
+        for req in reqs {
+            // Union of the bitmaps for this requirement's OpenType tag group.
+            let mut union = RoaringBitmap::new();
+            for tag in req.ot_tags() {
+                union |= self.get_tag_bitmap(tag_to_u32(*tag))?;
+            }
+            acc = Some(match acc {
+                Some(prev) => prev & union,
+                None => union,
+            });
+        }
+        Ok(acc)
+    }
+
+    /// Whether a candidate satisfies the multi-wise `--scripts` filter: every
+    /// requirement met via the OpenType path, OR every requirement met via the
+    /// Unicode (cmap) path. Mirrors [`Query::matches`] for the indexed store.
+    fn scripts_pass(
+        &self,
+        font_id: u32,
+        meta: &IndexedFontMeta,
+        query: &Query,
+        ot_all: Option<&RoaringBitmap>,
+    ) -> Result<bool> {
+        let reqs = query.scripts();
+        if reqs.is_empty() {
+            return Ok(true);
+        }
+
+        // OpenType path: this font is in the all-requirements OT set.
+        if ot_all.map(|b| b.contains(font_id)).unwrap_or(false) {
+            return Ok(true);
+        }
+
+        // Unicode path: the cmap covers every requested script.
+        if !meta.cmap_bitmap.is_empty() {
+            if let Ok(cmap) = RoaringBitmap::deserialize_from(meta.cmap_bitmap.as_slice()) {
+                let all_unicode = reqs
+                    .iter()
+                    .all(|req| req.unicode_satisfied(cmap.iter().filter_map(char::from_u32)));
+                if all_unicode {
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
     fn passes_filters(&self, meta: &IndexedFontMeta, query: &Query) -> Result<bool> {
         // Name pattern filter.
         if !query.name_patterns().is_empty() {

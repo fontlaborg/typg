@@ -16,6 +16,7 @@ use anyhow::{anyhow, Result};
 use read_fonts::types::Tag;
 use regex::Regex;
 
+use crate::scriptmap::ScriptRequirement;
 use crate::search::TypgFontFaceMeta;
 use crate::tags::tag4;
 
@@ -38,9 +39,14 @@ pub struct Query {
     /// Checked against features from both GSUB and GPOS tables.
     features: Vec<Tag>,
 
-    /// Script tags the font must declare support for (e.g., `latn`, `arab`).
-    /// Checked against script lists in GSUB and GPOS.
-    scripts: Vec<Tag>,
+    /// Script requirements the font must satisfy (e.g., `latn`, `Deva`).
+    ///
+    /// Each entry resolves an ISO 15924 or OpenType input into an OpenType tag
+    /// group plus a Unicode script. The font matches if it satisfies *every*
+    /// requirement through the OpenType path (a group tag in GSUB/GPOS), **or**
+    /// satisfies *every* requirement through the Unicode path (cmap coverage).
+    /// See [`ScriptRequirement`] and [`Query::matches`].
+    script_reqs: Vec<ScriptRequirement>,
 
     /// Top-level table tags the font must contain (e.g., `GSUB`, `CFF `).
     tables: Vec<Tag>,
@@ -103,10 +109,11 @@ impl Query {
         self
     }
 
-    /// Require these script tags. The font must declare support for *all*.
-    /// Example: `vec![tag4("latn")?, tag4("cyrl")?]`
-    pub fn with_scripts(mut self, scripts: Vec<Tag>) -> Self {
-        self.scripts = scripts;
+    /// Require these script requirements. The font must satisfy *all* of them
+    /// (via OpenType tags, or via Unicode cmap coverage — see [`Query::matches`]).
+    /// Build the requirements with [`crate::scriptmap::resolve_scripts`].
+    pub fn with_scripts(mut self, scripts: Vec<ScriptRequirement>) -> Self {
+        self.script_reqs = scripts;
         self
     }
 
@@ -177,9 +184,9 @@ impl Query {
         &self.features
     }
 
-    /// The required script tags, if any.
-    pub fn scripts(&self) -> &[Tag] {
-        &self.scripts
+    /// The resolved script requirements, if any.
+    pub fn scripts(&self) -> &[ScriptRequirement] {
+        &self.script_reqs
     }
 
     /// The required table tags, if any.
@@ -249,8 +256,23 @@ impl Query {
             return false;
         }
 
-        if !contains_all_tags(&meta.script_tags, &self.scripts) {
-            return false;
+        if !self.script_reqs.is_empty() {
+            let font_scripts: HashSet<Tag> = meta.script_tags.iter().copied().collect();
+            // Whole-OR: the font supports the requested list if *every* script is
+            // present in GSUB/GPOS (OpenType path), OR *every* script is covered
+            // by the cmap (Unicode path). The two paths are not mixed per-script.
+            let all_ot = self
+                .script_reqs
+                .iter()
+                .all(|req| req.ot_satisfied(&font_scripts));
+            let all_unicode = || {
+                self.script_reqs
+                    .iter()
+                    .all(|req| req.unicode_satisfied(meta.codepoints.iter().copied()))
+            };
+            if !(all_ot || all_unicode()) {
+                return false;
+            }
         }
 
         if !contains_all_tags(&meta.table_tags, &self.tables) {

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1775598509985,
+  "lastScanned": 1779804956945,
   "projectRoot": "/Users/adam/Developer/vcs3/github.fontlaborg/typg",
   "techStack": {
     "languages": [
@@ -47,7 +47,7 @@
       "path": "cli",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1775598509978,
+      "lastAccessed": 1779804956941,
       "keyFiles": [
         "Cargo.toml"
       ]
@@ -56,57 +56,60 @@
       "path": "core",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1775598509979,
+      "lastAccessed": 1779804956941,
       "keyFiles": []
     },
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1775598509979,
+      "lastAccessed": 1779804956941,
       "keyFiles": [
         "spec.md"
       ]
     },
-    "linked": {
-      "path": "linked",
+    "issues": {
+      "path": "issues",
       "purpose": null,
-      "fileCount": 0,
-      "lastAccessed": 1775598509980,
-      "keyFiles": []
+      "fileCount": 1,
+      "lastAccessed": 1779804956941,
+      "keyFiles": [
+        "101-scripts.md"
+      ]
     },
     "py": {
       "path": "py",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1775598509981,
+      "lastAccessed": 1779804956941,
       "keyFiles": []
     },
     "target": {
       "path": "target",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1775598509981,
+      "lastAccessed": 1779804956942,
       "keyFiles": [
-        "CACHEDIR.TAG"
+        "CACHEDIR.TAG",
+        "test_cache.json"
       ]
     },
     "cli/src": {
       "path": "cli/src",
       "purpose": "Source code",
-      "fileCount": 4,
-      "lastAccessed": 1775598509981,
+      "fileCount": 5,
+      "lastAccessed": 1779804956943,
       "keyFiles": [
+        "CLAUDE.md",
         "lib.rs",
-        "main.rs",
-        "server.rs"
+        "main.rs"
       ]
     },
     "cli/tests": {
       "path": "cli/tests",
       "purpose": "Test files",
       "fileCount": 1,
-      "lastAccessed": 1775598509981,
+      "lastAccessed": 1779804956943,
       "keyFiles": [
         "integration.rs"
       ]

@@ -15,6 +15,7 @@ use tempfile::TempDir;
 use typg_core::discovery::{FontDiscovery, PathDiscovery};
 use typg_core::index::FontIndex;
 use typg_core::query::Query;
+use typg_core::scriptmap::resolve_scripts;
 use typg_core::search::{search, SearchOptions};
 use typg_core::tags::tag4;
 
@@ -61,7 +62,7 @@ fn bench_live_scan(c: &mut Criterion) {
     };
 
     let query = Query::new()
-        .with_scripts(vec![tag4("latn").unwrap()])
+        .with_scripts(resolve_scripts(&["latn".to_string()]))
         .with_features(vec![tag4("kern").unwrap()]);
     let opts = SearchOptions::default();
     let paths = vec![fonts];
@@ -118,7 +119,7 @@ fn bench_lmdb_index(c: &mut Criterion) {
 
     // Benchmark index query
     let query = Query::new()
-        .with_scripts(vec![tag4("latn").unwrap()])
+        .with_scripts(resolve_scripts(&["latn".to_string()]))
         .with_features(vec![tag4("kern").unwrap()]);
 
     c.bench_function("lmdb_index_latn_kern", |b| {

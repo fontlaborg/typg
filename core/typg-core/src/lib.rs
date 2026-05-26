@@ -40,11 +40,12 @@
 /// ```rust,no_run
 /// use std::path::PathBuf;
 /// use typg_core::query::Query;
+/// use typg_core::scriptmap::resolve_scripts;
 /// use typg_core::search::{search, SearchOptions};
 /// use typg_core::tags::tag4;
 ///
 /// let query = Query::new()
-///     .with_scripts(vec![tag4("arab").unwrap()])
+///     .with_scripts(resolve_scripts(&["arab".to_string()]))
 ///     .with_axes(vec![tag4("wght").unwrap()])
 ///     .require_variable(true);
 ///
@@ -77,5 +78,6 @@ pub mod discovery;
 pub mod index;
 pub mod output;
 pub mod query;
+pub mod scriptmap;
 pub mod search;
 pub mod tags;

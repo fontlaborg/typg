@@ -31,6 +31,7 @@ use typg_core::query::{
     parse_codepoint_list, parse_family_class, parse_tag_list, parse_u16_range, FamilyClassFilter,
     Query,
 };
+use typg_core::scriptmap::resolve_scripts;
 use typg_core::search::{
     filter_cached, search, search_streaming, SearchOptions, TypgFontFaceMatch,
 };
@@ -215,7 +216,9 @@ struct CacheFindArgs {
     #[arg(short = 'f', long = "features", value_delimiter = ',', value_hint = ValueHint::Other)]
     features: Vec<String>,
 
-    /// Require fonts to cover these script tags
+    /// Require these scripts (ISO 15924 or OpenType tags). A font matches if it
+    /// supports every script via GSUB/GPOS OpenType tags, or covers every script
+    /// in its cmap. Indic ISO tags expand to all OpenType variants (deva, dev2…).
     #[arg(short = 's', long = "scripts", value_delimiter = ',', value_hint = ValueHint::Other)]
     scripts: Vec<String>,
 
@@ -326,7 +329,9 @@ struct FindArgs {
     #[arg(short = 'f', long = "features", value_delimiter = ',', value_hint = ValueHint::Other)]
     features: Vec<String>,
 
-    /// Require fonts to cover these script tags
+    /// Require these scripts (ISO 15924 or OpenType tags). A font matches if it
+    /// supports every script via GSUB/GPOS OpenType tags, or covers every script
+    /// in its cmap. Indic ISO tags expand to all OpenType variants (deva, dev2…).
     #[arg(short = 's', long = "scripts", value_delimiter = ',', value_hint = ValueHint::Other)]
     scripts: Vec<String>,
 
@@ -1262,7 +1267,7 @@ fn build_query_from_parts(
 ) -> Result<Query> {
     let axes = parse_tag_list(axes)?;
     let features = parse_tag_list(features)?;
-    let scripts = parse_tag_list(scripts)?;
+    let scripts = resolve_scripts(scripts);
     let tables = parse_tag_list(tables)?;
     let name_patterns = compile_patterns(name_patterns)?;
     let creator_patterns = compile_patterns(creator_patterns)?;
