@@ -48,12 +48,12 @@ Extend `typg find` to support fine-grained control over the metadata attributes 
   - Parse the `--details` / `-d` argument. Support preset parsing:
     - `0` -> `path` (only paths, equivalent to `--paths` but in the selected format)
     - `1` -> `path,fname,sname,fmt`
-    - `2` -> `path,fname,sname,fmt,psname,is_var`
-    - `5` -> `path,fname,sname,fmt,psname,is_var,weight,width,family_class`
-    - `8` -> `path,fname,sname,fmt,psname,is_var,weight,width,family_class,axes,fea_n,scripts`
+    - `2` -> `path,fname,sname,fmt,psname,var`
+    - `5` -> `path,fname,sname,fmt,psname,var,wt,wd,panf`
+    - `8` -> `path,fname,sname,fmt,psname,var,wt,wd,panf,axes,fea_n,scr`
     - `9` -> all keywords
   - If a comma-separated list is provided, validate each property string:
-    - Keywords: `path`, `path_r`, `fmt`, `fname`, `sname`, `psname`, `tfname`, `lfname`, `tsname`, `lsname`, `is_var` (or `variable`), `weight`, `width`, `family_class`, `axes`, `axes_n`, `fea`, `fea_n`, `scripts`, `scripts_n`, `tables`, `tables_n`, `creator_names`, `license_names`.
+    - Keywords: `path`, `path_r`, `fmt`, `fname`, `sname`, `psname`, `tfname`, `lfname`, `tsname`, `lsname`, `var`, `wt`, `wd`, `panf`, `axes`, `axes_n`, `fea`, `fea_n`, `scr`, `scr_n`, `tab`, `tab_n`, `crea`, `lic`.
 
 ### Phase 3 — Details Filtering & Formatting
 - [x] **Implement Relative Path Solver**:

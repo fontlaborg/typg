@@ -459,14 +459,27 @@ fn test_details_parsing_presets_and_custom() {
     );
 
     assert_eq!(
-        parse_details_list("path,fname,fmt,variable").unwrap(),
+        parse_details_list("path,fname,fmt,var").unwrap(),
         vec!["path", "fname", "fmt", "var"]
     );
 
     assert_eq!(
-        parse_details_list("weight,width,family_class,scripts,scripts_n,tables,tables_n,creator_names,license_names").unwrap(),
+        parse_details_list("wt,wd,panf,scr,scr_n,tab,tab_n,crea,lic").unwrap(),
         vec!["wt", "wd", "panf", "scr", "scr_n", "tab", "tab_n", "crea", "lic"]
     );
+
+    // Aliases should now be rejected as invalid keywords:
+    assert!(parse_details_list("variable").is_err());
+    assert!(parse_details_list("is_var").is_err());
+    assert!(parse_details_list("weight").is_err());
+    assert!(parse_details_list("width").is_err());
+    assert!(parse_details_list("family_class").is_err());
+    assert!(parse_details_list("scripts").is_err());
+    assert!(parse_details_list("scripts_n").is_err());
+    assert!(parse_details_list("tables").is_err());
+    assert!(parse_details_list("tables_n").is_err());
+    assert!(parse_details_list("creator_names").is_err());
+    assert!(parse_details_list("license_names").is_err());
 
     assert!(parse_details_list("invalid_kw").is_err());
     assert!(parse_details_list("").is_err());
