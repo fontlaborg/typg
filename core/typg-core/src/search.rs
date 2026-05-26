@@ -287,10 +287,7 @@ pub fn search(
     let run_search = || -> Vec<TypgFontFaceMatch> {
         let mut matches: Vec<TypgFontFaceMatch> = candidates
             .par_iter()
-            .flat_map_iter(|loc| match load_metadata(&loc.path) {
-                Ok(faces) => faces,
-                Err(_) => Vec::new(),
-            })
+            .flat_map_iter(|loc| load_metadata(&loc.path).unwrap_or_default())
             .filter(|face| query.matches(&face.metadata))
             .collect();
 
@@ -335,18 +332,15 @@ pub fn search_streaming(
     let candidates = discovery.discover()?;
 
     let run_search = || {
-        candidates
-            .par_iter()
-            .for_each_with(tx, |tx, loc| match load_metadata(&loc.path) {
-                Ok(faces) => {
-                    for face in faces {
-                        if query.matches(&face.metadata) {
-                            let _ = tx.send(face);
-                        }
+        candidates.par_iter().for_each_with(tx, |tx, loc| {
+            if let Ok(faces) = load_metadata(&loc.path) {
+                for face in faces {
+                    if query.matches(&face.metadata) {
+                        let _ = tx.send(face);
                     }
                 }
-                Err(_) => {}
-            });
+            }
+        });
     };
 
     if let Some(jobs) = opts.jobs {
@@ -558,6 +552,7 @@ fn collect_codepoints(font: &SkrifaFontRef) -> Vec<char> {
 ///
 /// Non-Unicode records (legacy Mac Roman, Windows symbol) are skipped.
 /// Empty or whitespace-only strings are discarded.
+#[allow(clippy::type_complexity)]
 fn collect_names_and_details(
     font: &FontRef,
 ) -> (

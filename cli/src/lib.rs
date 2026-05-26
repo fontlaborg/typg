@@ -739,7 +739,7 @@ fn parse_details_list(details: &str) -> Result<Vec<String>> {
             "sname".to_string(),
             "fmt".to_string(),
             "psname".to_string(),
-            "is_var".to_string(),
+            "var".to_string(),
         ],
         "5" => vec![
             "path".to_string(),
@@ -747,10 +747,10 @@ fn parse_details_list(details: &str) -> Result<Vec<String>> {
             "sname".to_string(),
             "fmt".to_string(),
             "psname".to_string(),
-            "is_var".to_string(),
-            "weight".to_string(),
-            "width".to_string(),
-            "family_class".to_string(),
+            "var".to_string(),
+            "wt".to_string(),
+            "wd".to_string(),
+            "panf".to_string(),
         ],
         "8" => vec![
             "path".to_string(),
@@ -758,13 +758,13 @@ fn parse_details_list(details: &str) -> Result<Vec<String>> {
             "sname".to_string(),
             "fmt".to_string(),
             "psname".to_string(),
-            "is_var".to_string(),
-            "weight".to_string(),
-            "width".to_string(),
-            "family_class".to_string(),
+            "var".to_string(),
+            "wt".to_string(),
+            "wd".to_string(),
+            "panf".to_string(),
             "axes".to_string(),
             "fea_n".to_string(),
-            "scripts".to_string(),
+            "scr".to_string(),
         ],
         "9" => vec![
             "path".to_string(),
@@ -777,20 +777,20 @@ fn parse_details_list(details: &str) -> Result<Vec<String>> {
             "lfname".to_string(),
             "tsname".to_string(),
             "lsname".to_string(),
-            "is_var".to_string(),
-            "weight".to_string(),
-            "width".to_string(),
-            "family_class".to_string(),
+            "var".to_string(),
+            "wt".to_string(),
+            "wd".to_string(),
+            "panf".to_string(),
             "axes".to_string(),
             "axes_n".to_string(),
             "fea".to_string(),
             "fea_n".to_string(),
-            "scripts".to_string(),
-            "scripts_n".to_string(),
-            "tables".to_string(),
-            "tables_n".to_string(),
-            "creator_names".to_string(),
-            "license_names".to_string(),
+            "scr".to_string(),
+            "scr_n".to_string(),
+            "tab".to_string(),
+            "tab_n".to_string(),
+            "crea".to_string(),
+            "lic".to_string(),
         ],
         other => {
             let mut parts = Vec::new();
@@ -798,34 +798,22 @@ fn parse_details_list(details: &str) -> Result<Vec<String>> {
                 let trimmed = part.trim();
                 if !trimmed.is_empty() {
                     let canon = match trimmed {
-                        "variable" => "is_var",
+                        "is_var" | "variable" => "var",
+                        "weight" => "wt",
+                        "width" => "wd",
+                        "family_class" => "panf",
+                        "scripts" => "scr",
+                        "scripts_n" => "scr_n",
+                        "tables" => "tab",
+                        "tables_n" => "tab_n",
+                        "creator_names" => "crea",
+                        "license_names" => "lic",
                         other => other,
                     };
                     let valid_keywords = [
-                        "path",
-                        "path_r",
-                        "fmt",
-                        "fname",
-                        "sname",
-                        "psname",
-                        "tfname",
-                        "lfname",
-                        "tsname",
-                        "lsname",
-                        "is_var",
-                        "weight",
-                        "width",
-                        "family_class",
-                        "axes",
-                        "axes_n",
-                        "fea",
-                        "fea_n",
-                        "scripts",
-                        "scripts_n",
-                        "tables",
-                        "tables_n",
-                        "creator_names",
-                        "license_names",
+                        "path", "path_r", "fmt", "fname", "sname", "psname", "tfname", "lfname",
+                        "tsname", "lsname", "var", "wt", "wd", "panf", "axes", "axes_n", "fea",
+                        "fea_n", "scr", "scr_n", "tab", "tab_n", "crea", "lic",
                     ];
                     if !valid_keywords.contains(&canon) {
                         return Err(anyhow!("invalid details keyword: {}", trimmed));
@@ -851,9 +839,9 @@ fn get_effective_properties(format: &OutputFormat) -> Result<Vec<String>> {
             "fname".to_string(),
             "sname".to_string(),
             "fmt".to_string(),
-            "is_var".to_string(),
-            "weight".to_string(),
-            "width".to_string(),
+            "var".to_string(),
+            "wt".to_string(),
+            "wd".to_string(),
         ])
     } else {
         Ok(Vec::new())
@@ -919,10 +907,10 @@ fn extract_property_value(
         "lfname" => serde_json::Value::String(m.metadata.lfname.clone().unwrap_or_default()),
         "tsname" => serde_json::Value::String(m.metadata.tsname.clone().unwrap_or_default()),
         "lsname" => serde_json::Value::String(m.metadata.lsname.clone().unwrap_or_default()),
-        "is_var" => serde_json::Value::Bool(m.metadata.is_variable),
-        "weight" => serde_json::Value::Number(m.metadata.weight_class.unwrap_or_default().into()),
-        "width" => serde_json::Value::Number(m.metadata.width_class.unwrap_or_default().into()),
-        "family_class" => {
+        "var" => serde_json::Value::Bool(m.metadata.is_variable),
+        "wt" => serde_json::Value::Number(m.metadata.weight_class.unwrap_or_default().into()),
+        "wd" => serde_json::Value::Number(m.metadata.width_class.unwrap_or_default().into()),
+        "panf" => {
             let fc = m
                 .metadata
                 .family_class
@@ -950,7 +938,7 @@ fn extract_property_value(
             serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect())
         }
         "fea_n" => serde_json::Value::Number(m.metadata.feature_tags.len().into()),
-        "scripts" => {
+        "scr" => {
             let list: Vec<String> = m
                 .metadata
                 .script_tags
@@ -959,8 +947,8 @@ fn extract_property_value(
                 .collect();
             serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect())
         }
-        "scripts_n" => serde_json::Value::Number(m.metadata.script_tags.len().into()),
-        "tables" => {
+        "scr_n" => serde_json::Value::Number(m.metadata.script_tags.len().into()),
+        "tab" => {
             let list: Vec<String> = m
                 .metadata
                 .table_tags
@@ -969,15 +957,15 @@ fn extract_property_value(
                 .collect();
             serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect())
         }
-        "tables_n" => serde_json::Value::Number(m.metadata.table_tags.len().into()),
-        "creator_names" => serde_json::Value::Array(
+        "tab_n" => serde_json::Value::Number(m.metadata.table_tags.len().into()),
+        "crea" => serde_json::Value::Array(
             m.metadata
                 .creator_names
                 .iter()
                 .map(|s| serde_json::Value::String(s.clone()))
                 .collect(),
         ),
-        "license_names" => serde_json::Value::Array(
+        "lic" => serde_json::Value::Array(
             m.metadata
                 .license_names
                 .iter()

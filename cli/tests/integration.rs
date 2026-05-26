@@ -630,8 +630,8 @@ fn find_csv_output() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = stdout.lines().collect();
     assert!(lines.len() >= 2);
-    // Header should be: path,fname,sname,fmt,is_var,weight,width
-    assert!(lines[0].starts_with("path,fname,sname,fmt,is_var,weight,width"));
+    // Header should be: path,fname,sname,fmt,var,wt,wd
+    assert!(lines[0].starts_with("path,fname,sname,fmt,var,wt,wd"));
     assert!(lines[1].contains("NotoNaskhArabic-Regular.ttf"));
 
     // Test with custom details in CSV

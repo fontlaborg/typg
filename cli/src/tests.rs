@@ -421,12 +421,17 @@ fn test_details_parsing_presets_and_custom() {
     );
     assert_eq!(
         parse_details_list("2").unwrap(),
-        vec!["path", "fname", "sname", "fmt", "psname", "is_var"]
+        vec!["path", "fname", "sname", "fmt", "psname", "var"]
     );
 
     assert_eq!(
         parse_details_list("path,fname,fmt,variable").unwrap(),
-        vec!["path", "fname", "fmt", "is_var"]
+        vec!["path", "fname", "fmt", "var"]
+    );
+
+    assert_eq!(
+        parse_details_list("weight,width,family_class,scripts,scripts_n,tables,tables_n,creator_names,license_names").unwrap(),
+        vec!["wt", "wd", "panf", "scr", "scr_n", "tab", "tab_n", "crea", "lic"]
     );
 
     assert!(parse_details_list("invalid_kw").is_err());

@@ -3,6 +3,10 @@
 made by FontLab https://www.fontlab.com/
 
 ## v0.0.0 (unreleased)
+- **Details Keyword Renaming**:
+  - Renamed `is_var`/`variable` to `var`, `weight` to `wt`, `width` to `wd`, `family_class` to `panf`, `scripts` to `scr`, `scripts_n` to `scr_n`, `tables` to `tab`, `tables_n` to `tab_n`, `creator_names` to `crea`, and `license_names` to `lic` in custom details formatting.
+  - Added backward-compatible canonicalization mappings to support old keyword names.
+  - Updated unit tests, integration tests, and default CSV headers.
 - **Custom Details & CSV Output**:
   - Added `--details` / `-d` option to `typg find`, `cache find`, and `cache list` accepting preset integers (0, 1, 2, 5, 8, 9) or custom comma-separated property names.
   - Added `--csv` output format to export structured font details to standard CSV format.
