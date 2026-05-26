@@ -50,6 +50,11 @@ fn sample_fonts() -> Vec<TypgFontFaceMatch> {
                 family_class: Some((8, 0)),
                 creator_names: Vec::new(),
                 license_names: Vec::new(),
+                psname: None,
+                tfname: None,
+                lfname: None,
+                tsname: None,
+                lsname: None,
             },
         },
         TypgFontFaceMatch {
@@ -70,6 +75,11 @@ fn sample_fonts() -> Vec<TypgFontFaceMatch> {
                 family_class: None,
                 creator_names: Vec::new(),
                 license_names: Vec::new(),
+                psname: None,
+                tfname: None,
+                lfname: None,
+                tsname: None,
+                lsname: None,
             },
         },
     ]

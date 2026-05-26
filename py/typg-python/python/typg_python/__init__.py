@@ -1,9 +1,9 @@
 """
 Font discovery that feels like finding your favorite coffee shop.
 
-These Python wrappers expose typg's Rust-powered font search with the gentle 
-warmth you expect from Python. Like having a friend who speaks both languages 
-fluently - translating between Rust's speed and Python's comfort without breaking 
+These Python wrappers expose typg's Rust-powered font search with the gentle
+warmth you expect from Python. Like having a friend who speaks both languages
+fluently - translating between Rust's speed and Python's comfort without breaking
 a sweat. No caffeine required, but fonts may become surprisingly addictive.
 """
 

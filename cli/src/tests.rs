@@ -29,6 +29,11 @@ fn metadata_with(name: &str, axis: Option<&str>, ttc: Option<u32>) -> TypgFontFa
             family_class: None,
             creator_names: Vec::new(),
             license_names: Vec::new(),
+            psname: None,
+            tfname: None,
+            lfname: None,
+            tsname: None,
+            lsname: None,
         },
     }
 }
@@ -117,6 +122,8 @@ fn invalid_regex_returns_error() {
         collections: false,
         count_only: false,
         color: ColorChoice::Auto,
+        csv: false,
+        details: None,
     };
 
     let built = build_query(&args);
@@ -331,6 +338,8 @@ fn rejects_zero_jobs() {
         collections: false,
         count_only: false,
         color: ColorChoice::Auto,
+        csv: false,
+        details: None,
     };
 
     let result = run_find(args);
@@ -401,4 +410,75 @@ fn prune_missing_entries_drops_nonexistent_paths() {
     let pruned = prune_missing(entries);
     assert_eq!(pruned.len(), 1, "missing entry should be dropped");
     assert_eq!(pruned[0].source.path, keep_path);
+}
+
+#[test]
+fn test_details_parsing_presets_and_custom() {
+    assert_eq!(parse_details_list("0").unwrap(), vec!["path"]);
+    assert_eq!(
+        parse_details_list("1").unwrap(),
+        vec!["path", "fname", "sname", "fmt"]
+    );
+    assert_eq!(
+        parse_details_list("2").unwrap(),
+        vec!["path", "fname", "sname", "fmt", "psname", "is_var"]
+    );
+
+    assert_eq!(
+        parse_details_list("path,fname,fmt,variable").unwrap(),
+        vec!["path", "fname", "fmt", "is_var"]
+    );
+
+    assert!(parse_details_list("invalid_kw").is_err());
+    assert!(parse_details_list("").is_err());
+}
+
+#[test]
+fn test_csv_escaping() {
+    assert_eq!(escape_csv_field("simple"), "simple");
+    assert_eq!(escape_csv_field("one,two"), "\"one,two\"");
+    assert_eq!(escape_csv_field("quote\"here"), "\"quote\"\"here\"");
+    assert_eq!(escape_csv_field("line\nbreak"), "\"line\nbreak\"");
+}
+
+#[test]
+fn test_relative_path_solver() {
+    let roots = vec![PathBuf::from("/fonts/sys"), PathBuf::from("/fonts/user")];
+
+    let p1 = PathBuf::from("/fonts/sys/sans/Arial.ttf");
+    assert_eq!(get_relative_path(&p1, &roots), "sans/Arial.ttf");
+
+    let p2 = PathBuf::from("/fonts/user/custom/Blob.ttf");
+    assert_eq!(get_relative_path(&p2, &roots), "custom/Blob.ttf");
+
+    let p3 = PathBuf::from("/other/path/Font.ttf");
+    assert_eq!(get_relative_path(&p3, &roots), "Font.ttf");
+}
+
+#[test]
+fn test_extract_property_values() {
+    let mut m = metadata_with("TestFont", None, Some(1));
+    m.metadata.tfname = Some("TypoFamily".to_string());
+    m.metadata.tsname = Some("TypoSub".to_string());
+    m.metadata.weight_class = Some(500);
+    m.metadata.is_variable = true;
+
+    let roots = vec![PathBuf::from("/fonts")];
+
+    assert_eq!(
+        extract_property_value(&m, "fname", &roots, false),
+        serde_json::Value::String("TypoFamily".to_string())
+    );
+    assert_eq!(
+        extract_property_value(&m, "sname", &roots, false),
+        serde_json::Value::String("TypoSub".to_string())
+    );
+    assert_eq!(
+        extract_property_value(&m, "path", &roots, true),
+        serde_json::Value::String("/fonts/TestFont.ttc#1".to_string())
+    );
+    assert_eq!(
+        extract_property_value(&m, "path_r", &roots, true),
+        serde_json::Value::String("TestFont.ttc#1".to_string())
+    );
 }

@@ -107,21 +107,7 @@ fn bench_lmdb_index(c: &mut Criterion) {
             &SearchOptions::default(),
         ) {
             for m in matches {
-                let _ = writer.add_font(
-                    &m.source.path,
-                    m.source.ttc_index,
-                    mtime,
-                    m.metadata.names.clone(),
-                    &m.metadata.axis_tags,
-                    &m.metadata.feature_tags,
-                    &m.metadata.script_tags,
-                    &m.metadata.table_tags,
-                    &m.metadata.codepoints.iter().copied().collect::<Vec<_>>(),
-                    m.metadata.is_variable,
-                    m.metadata.weight_class,
-                    m.metadata.width_class,
-                    m.metadata.family_class,
-                );
+                let _ = writer.add_font(&m.source.path, m.source.ttc_index, mtime, &m.metadata);
             }
         }
     }

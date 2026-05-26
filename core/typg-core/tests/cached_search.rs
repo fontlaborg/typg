@@ -24,6 +24,11 @@ fn metadata_with(name: &str, axis: Option<&str>, ttc_index: Option<u32>) -> Typg
             family_class: None,
             creator_names: Vec::new(),
             license_names: Vec::new(),
+            psname: None,
+            tfname: None,
+            lfname: None,
+            tsname: None,
+            lsname: None,
         },
     }
 }

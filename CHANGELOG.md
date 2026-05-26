@@ -3,6 +3,14 @@
 made by FontLab https://www.fontlab.com/
 
 ## v0.0.0 (unreleased)
+- **Custom Details & CSV Output**:
+  - Added `--details` / `-d` option to `typg find`, `cache find`, and `cache list` accepting preset integers (0, 1, 2, 5, 8, 9) or custom comma-separated property names.
+  - Added `--csv` output format to export structured font details to standard CSV format.
+  - Refactored `FontIndex::writer::add_font` inside index module to accept a unified `&TypgFontFaceMeta` instead of 14 flat arguments.
+  - Extended name table parsing in `typg-core` to extract PostScript, legacy family, typographic family, and subfamily names into distinct meta fields.
+  - Added relative path solver and property value extractor to support formatting details dynamically across JSON, NDJSON, columns, CSV, and plain text.
+  - Exposed name table metadata fields to Python dictionary output in PyO3 bindings and updated Python metadata inputs.
+  - Integrated full unit and integration test coverage for property extraction, presets, relative paths, CSV escaping, and Python bindings.
 - Initialized planning docs (PLAN, WORK, TODO updates) and recorded reuse/metrics direction for typg.
 - Documented no direct dependency on fontgrep/fontgrepc, added typg-core workspace crate with initial filesystem discovery helper plus tests.
 - Implemented query/filter parsing with property tests, added baseline search pipeline with metadata extraction and JSON/NDJSON writers in typg-core.

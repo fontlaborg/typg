@@ -52,6 +52,11 @@ mod tests {
                 family_class: None,
                 creator_names: Vec::new(),
                 license_names: Vec::new(),
+                psname: None,
+                tfname: None,
+                lfname: None,
+                tsname: None,
+                lsname: None,
             },
         }
     }

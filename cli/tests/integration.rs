@@ -536,3 +536,157 @@ fn index_add_find_and_list_cycle() {
         "indexed find --variable should include Kalnia"
     );
 }
+
+/// Verify that `find --details 0` returns only paths as a json array or plain text.
+#[test]
+fn find_details_preset_0() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    // JSON format with -d 0: should return a JSON array of strings
+    let output = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["find", "--scripts", "arab", "-d", "0", "--json"])
+        .arg(&fonts)
+        .output()
+        .expect("run typg");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let parsed: Value = serde_json::from_str(&stdout).expect("parse json");
+    let arr = parsed
+        .as_array()
+        .expect("preset 0 json should be array of paths");
+    assert_eq!(arr.len(), 1);
+    assert!(arr[0]
+        .as_str()
+        .unwrap()
+        .ends_with("NotoNaskhArabic-Regular.ttf"));
+
+    // Plain format with -d 0: should return just the path
+    let output_plain = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["find", "--scripts", "arab", "-d", "0"])
+        .arg(&fonts)
+        .output()
+        .expect("run typg");
+
+    assert!(output_plain.status.success());
+    let stdout_plain = String::from_utf8_lossy(&output_plain.stdout);
+    assert!(stdout_plain.trim().ends_with("NotoNaskhArabic-Regular.ttf"));
+    // Since -d 0 was requested, plain output should just contain the path (no family/style suffix).
+    assert!(!stdout_plain.contains(" - "));
+}
+
+/// Verify custom property lists.
+#[test]
+fn find_custom_details_json() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let output = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args([
+            "find",
+            "--scripts",
+            "arab",
+            "-d",
+            "fname,fmt,psname",
+            "--json",
+        ])
+        .arg(&fonts)
+        .output()
+        .expect("run typg");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let parsed: Value = serde_json::from_str(&stdout).expect("parse json");
+    let arr = parsed.as_array().expect("json should be array of objects");
+    assert_eq!(arr.len(), 1);
+    let obj = arr[0].as_object().expect("each item is an object");
+    assert_eq!(obj.len(), 3);
+    assert!(obj.contains_key("fname"));
+    assert!(obj.contains_key("fmt"));
+    assert!(obj.contains_key("psname"));
+    assert_eq!(obj["fmt"].as_str(), Some("ttf"));
+}
+
+/// Verify CSV output format.
+#[test]
+fn find_csv_output() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let output = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["find", "--scripts", "arab", "--csv"])
+        .arg(&fonts)
+        .output()
+        .expect("run typg");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert!(lines.len() >= 2);
+    // Header should be: path,fname,sname,fmt,is_var,weight,width
+    assert!(lines[0].starts_with("path,fname,sname,fmt,is_var,weight,width"));
+    assert!(lines[1].contains("NotoNaskhArabic-Regular.ttf"));
+
+    // Test with custom details in CSV
+    let output_custom = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args([
+            "find",
+            "--scripts",
+            "arab",
+            "-d",
+            "fname,psname,fmt",
+            "--csv",
+        ])
+        .arg(&fonts)
+        .output()
+        .expect("run typg");
+
+    assert!(output_custom.status.success());
+    let stdout_custom = String::from_utf8_lossy(&output_custom.stdout);
+    let lines_custom: Vec<&str> = stdout_custom.lines().collect();
+    assert_eq!(lines_custom[0], "fname,psname,fmt");
+    assert!(lines_custom[1].contains("ttf"));
+}
+
+/// Verify that cache search commands also support --details and --csv.
+#[test]
+fn cache_find_details_and_csv() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let tmp = tempdir().expect("tempdir");
+    let cache_path = tmp.path().join("cache.json");
+
+    // Add fonts.
+    let add = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "add", "--cache-path"])
+        .arg(&cache_path)
+        .arg(&fonts)
+        .output()
+        .expect("run cache add");
+    assert!(add.status.success());
+
+    // Cache find with CSV and details.
+    let find = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "find", "--cache-path"])
+        .arg(&cache_path)
+        .args(["--scripts", "arab", "-d", "fname,fmt", "--csv"])
+        .output()
+        .expect("run cache find");
+
+    assert!(find.status.success());
+    let stdout = String::from_utf8_lossy(&find.stdout);
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines[0], "fname,fmt");
+    assert!(lines[1].contains("Noto Naskh Arabic"));
+    assert!(lines[1].contains("ttf"));
+}

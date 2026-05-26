@@ -46,8 +46,9 @@ Build script for typg - ultra-fast font search/discovery toolkit
 BUILD_TYPE:
     debug      Build with debugging information (faster compile)
     release    Optimized release build (default)
-    check      Run checks without building
-    clean      Clean build artifacts
+    check      Run checks (Rust formatting/linting, Python formatting/linting)
+    test       Run test suites (Rust and Python)
+    clean      Clean build artifacts (Rust and Python)
 
 PYTHON_VERSION:
     3.10, 3.11, 3.12, or 3.13 (default: 3.13)
@@ -164,7 +165,8 @@ clean_build() {
     
     # Clean Python build artifacts if they exist
     if [[ -f "$PROJECT_ROOT/py/typg-python/pyproject.toml" ]]; then
-        (cd "$PROJECT_ROOT/py/typg-python" && rm -rf build/ dist/ *.egg-info/)
+        (cd "$PROJECT_ROOT/py/typg-python" && rm -rf build/ dist/ *.egg-info/ .venv/ .mypy_cache/ .ruff_cache/ .pytest_cache/)
+        find "$PROJECT_ROOT" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
     fi
     
     log_success "Build artifacts cleaned"
@@ -193,12 +195,74 @@ run_checks() {
         log_error "Linting check failed (warnings found)"
         ((failed_checks++))
     fi
+
+    # Python linting and formatting check
+    log_info "Checking Python linting and formatting..."
+    if command -v uv >/dev/null 2>&1; then
+        if uvx ruff check --ignore F401 "$PROJECT_ROOT/py/typg-python" && uvx ruff format --check "$PROJECT_ROOT/py/typg-python"; then
+            log_success "Python checks passed"
+        else
+            log_error "Python checks failed"
+            ((failed_checks++))
+        fi
+    elif command -v ruff >/dev/null 2>&1; then
+        if ruff check --ignore F401 "$PROJECT_ROOT/py/typg-python" && ruff format --check "$PROJECT_ROOT/py/typg-python"; then
+            log_success "Python checks passed"
+        else
+            log_error "Python checks failed"
+            ((failed_checks++))
+        fi
+    else
+        log_warning "ruff not found — skipping Python quality checks"
+    fi
     
     if [[ $failed_checks -eq 0 ]]; then
         log_success "All checks passed"
         return 0
     else
         log_warning "$failed_checks check(s) failed. Fix issues before proceeding with release build."
+        return 1
+    fi
+}
+
+# Run Rust and Python test suites
+run_tests() {
+    log_info "Running Rust and Python test suites..."
+    
+    local failed=0
+    
+    # Run Rust tests
+    log_info "Running Rust tests..."
+    if cargo test --workspace --features hpindex; then
+        log_success "Rust tests passed"
+    else
+        log_error "Rust tests failed"
+        failed=1
+    fi
+    
+    # Run Python tests
+    log_info "Running Python tests..."
+    if command -v uv >/dev/null 2>&1; then
+        if (cd "$PROJECT_ROOT/py/typg-python" && uv run --with maturin --with pytest pytest); then
+            log_success "Python tests passed"
+        else
+            log_error "Python tests failed"
+            failed=1
+        fi
+    else
+        if (cd "$PROJECT_ROOT/py/typg-python" && pytest); then
+            log_success "Python tests passed"
+        else
+            log_error "Python tests failed"
+            failed=1
+        fi
+    fi
+    
+    if [[ $failed -eq 0 ]]; then
+        log_success "All tests passed successfully!"
+        return 0
+    else
+        log_error "Some test suites failed"
         return 1
     fi
 }
@@ -338,6 +402,11 @@ main() {
         check|--check	)
             check_dependencies
             run_checks
+            exit 0
+            ;;
+        test|--test)
+            check_dependencies
+            run_tests
             exit 0
             ;;
         clean|--clean)

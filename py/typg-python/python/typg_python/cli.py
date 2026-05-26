@@ -119,7 +119,7 @@ def find_cli(
 ):
     """
     Fire-exposed command for font discovery.
-    
+
     Accepts font filtering criteria and delegates to find() or find_paths()
     based on paths_only flag. All string sequences converted to lists.
     """

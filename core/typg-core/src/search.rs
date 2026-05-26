@@ -178,6 +178,26 @@ pub struct TypgFontFaceMeta {
     /// Font License" or "find fonts with no license URL."
     #[serde(default)]
     pub license_names: Vec<String>,
+
+    /// PostScript Name (ID 6)
+    #[serde(default)]
+    pub psname: Option<String>,
+
+    /// Typographic Family Name (ID 16)
+    #[serde(default)]
+    pub tfname: Option<String>,
+
+    /// Legacy Family Name (ID 1)
+    #[serde(default)]
+    pub lfname: Option<String>,
+
+    /// Typographic Subfamily Name (ID 17)
+    #[serde(default)]
+    pub tsname: Option<String>,
+
+    /// Legacy Subfamily Name (ID 2)
+    #[serde(default)]
+    pub lsname: Option<String>,
 }
 
 /// Where a font face lives on disk.
@@ -383,7 +403,7 @@ fn load_metadata(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
             SkrifaFontRef::new(&data)?
         };
 
-        let names = collect_names(&font);
+        let (names, psname, tfname, lfname, tsname, lsname) = collect_names_and_details(&font);
         let mut axis_tags = collect_axes(&font);
         let mut feature_tags = collect_features(&font);
         let mut script_tags = collect_scripts(&font);
@@ -423,6 +443,11 @@ fn load_metadata(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
                 family_class,
                 creator_names,
                 license_names,
+                psname,
+                tfname,
+                lfname,
+                tsname,
+                lsname,
             },
         });
     }
@@ -519,7 +544,7 @@ fn collect_codepoints(font: &SkrifaFontRef) -> Vec<char> {
     cps
 }
 
-/// Extract identifying name strings from the font's `name` table.
+/// Extract identifying name strings and details from the font's `name` table.
 ///
 /// The `name` table stores human-readable strings in multiple languages and
 /// encodings. We read only Unicode-encoded records for these name IDs:
@@ -533,8 +558,22 @@ fn collect_codepoints(font: &SkrifaFontRef) -> Vec<char> {
 ///
 /// Non-Unicode records (legacy Mac Roman, Windows symbol) are skipped.
 /// Empty or whitespace-only strings are discarded.
-fn collect_names(font: &FontRef) -> Vec<String> {
+fn collect_names_and_details(
+    font: &FontRef,
+) -> (
+    Vec<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+) {
     let mut names = Vec::new();
+    let mut psname = None;
+    let mut tfname = None;
+    let mut lfname = None;
+    let mut tsname = None;
+    let mut lsname = None;
 
     if let Ok(name_table) = font.name() {
         let data = name_table.string_data();
@@ -551,19 +590,34 @@ fn collect_names(font: &FontRef) -> Vec<String> {
             if !record.is_unicode() {
                 continue;
             }
-            if !wanted.contains(&record.name_id()) {
+            let name_id = record.name_id();
+            if !wanted.contains(&name_id) {
                 continue;
             }
             if let Ok(entry) = record.string(data) {
                 let rendered = entry.to_string();
-                if !rendered.trim().is_empty() {
+                let trimmed = rendered.trim().to_string();
+                if !trimmed.is_empty() {
                     names.push(rendered);
+
+                    let val = Some(trimmed);
+                    if name_id == NameId::POSTSCRIPT_NAME && psname.is_none() {
+                        psname = val;
+                    } else if name_id == NameId::TYPOGRAPHIC_FAMILY_NAME && tfname.is_none() {
+                        tfname = val;
+                    } else if name_id == NameId::FAMILY_NAME && lfname.is_none() {
+                        lfname = val;
+                    } else if name_id == NameId::TYPOGRAPHIC_SUBFAMILY_NAME && tsname.is_none() {
+                        tsname = val;
+                    } else if name_id == NameId::SUBFAMILY_NAME && lsname.is_none() {
+                        lsname = val;
+                    }
                 }
             }
         }
     }
 
-    names
+    (names, psname, tfname, lfname, tsname, lsname)
 }
 
 /// Extract creator and provenance strings from the `name` table.

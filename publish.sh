@@ -563,7 +563,7 @@ check_status() {
 
 # Main execution
 main() {
-	local command="${1:-publish}"
+	local command="publish"
 	local rust_only=false
 	local python_only=false
 

@@ -25,8 +25,18 @@ def fonts_dir() -> Path:
     if env_override:
         path = Path(env_override)
     else:
-        # Repo root = .../github.fontlaborg; tests live under typg/typg-python/tests
-        path = Path(__file__).resolve().parents[3] / "typf" / "test-fonts"
+        # Check multiple candidate directories for test-fonts
+        parents = Path(__file__).resolve().parents
+        candidates = [
+            parents[3] / "typf" / "test-fonts",
+            parents[4] / "typf" / "test-fonts",
+            parents[3] / "linked" / "typf" / "test-fonts",
+            parents[4] / "linked" / "typf" / "test-fonts",
+        ]
+        path = next(
+            (cand for cand in candidates if cand.exists()),
+            parents[3] / "typf" / "test-fonts",
+        )
 
     if not path.exists():
         pytest.skip(f"test fonts missing at {path}")
@@ -35,7 +45,7 @@ def fonts_dir() -> Path:
 
 
 def test_find_filters_variable_flag(fonts_dir: Path) -> None:
-    # Variable fonts are the shapeshifters of the font world - 
+    # Variable fonts are the shapeshifters of the font world -
     # they dance between styles like a cat finding the perfect sunbeam.
     # Static fonts are the dependable types - no surprises, just solid character.
     variable_font = fonts_dir / "SourceSansVariable-Italic.otf"
@@ -50,7 +60,9 @@ def test_find_filters_variable_flag(fonts_dir: Path) -> None:
     assert "wght" in match["metadata"]["axis_tags"], "variable font should expose axes"
 
 
-def test_cli_uses_system_font_env_override(fonts_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_uses_system_font_env_override(
+    fonts_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Environment variables are like secret menu items - they can send
     # our font fishing expedition to completely different waters.
     monkeypatch.setenv("TYPOG_SYSTEM_FONT_DIRS", str(fonts_dir))
@@ -94,7 +106,7 @@ def test_cli_paths_only_returns_paths(fonts_dir: Path) -> None:
 
     assert paths, "CLI paths_only should yield path strings"
     assert all(isinstance(path, str) for path in paths)
-    assert all(path.endswith(('.otf', '.ttf', '.ttc')) for path in paths)
+    assert all(path.endswith((".otf", ".ttf", ".ttc")) for path in paths)
 
 
 def _metadata(
@@ -161,3 +173,20 @@ def test_filter_cached_family_class_filters_major_and_subclass() -> None:
     subclass = typg_python.filter_cached(entries, family_class="8.11")
     assert len(subclass) == 1
     assert subclass[0]["path"] == "Sans.ttf"
+
+
+def test_name_fields_in_metadata(fonts_dir: Path) -> None:
+    # Verify that finding fonts returns the new name details in metadata.
+    font_path = fonts_dir / "NotoSans-Regular.ttf"
+    results = typg_python.find([str(font_path)])
+    assert len(results) == 1
+    meta = results[0]["metadata"]
+
+    # Check that the new fields exist in the returned dictionary
+    for field in ["psname", "tfname", "lfname", "tsname", "lsname"]:
+        assert field in meta
+
+    # NotoSans-Regular has PostScript name "NotoSans-Regular"
+    assert meta["psname"] == "NotoSans-Regular"
+    assert meta["lfname"] == "Noto Sans"
+    assert meta["lsname"] == "Regular"

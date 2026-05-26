@@ -26,7 +26,7 @@ use regex::Regex;
 use serde_json::Deserializer;
 use tokio::runtime::Builder;
 
-use typg_core::output::{write_json_pretty, write_ndjson};
+// Removed unused imports write_json_pretty and write_ndjson
 use typg_core::query::{
     parse_codepoint_list, parse_family_class, parse_tag_list, parse_u16_range, FamilyClassFilter,
     Query,
@@ -34,6 +34,7 @@ use typg_core::query::{
 use typg_core::search::{
     filter_cached, search, search_streaming, SearchOptions, TypgFontFaceMatch,
 };
+use typg_core::tags::tag_to_string;
 
 #[cfg(feature = "hpindex")]
 use typg_core::index::FontIndex;
@@ -134,23 +135,31 @@ struct CacheAddArgs {
 #[derive(Debug, Args, Clone)]
 struct OutputArgs {
     /// Output as a single JSON array
-    #[arg(long = "json", action = ArgAction::SetTrue, conflicts_with = "ndjson")]
+    #[arg(long = "json", action = ArgAction::SetTrue, conflicts_with_all = ["ndjson", "csv"])]
     json: bool,
 
     /// Output as newline-delimited JSON (one object per line)
-    #[arg(long = "ndjson", action = ArgAction::SetTrue)]
+    #[arg(long = "ndjson", action = ArgAction::SetTrue, conflicts_with_all = ["json", "csv"])]
     ndjson: bool,
+
+    /// Output as CSV
+    #[arg(
+        long = "csv",
+        action = ArgAction::SetTrue,
+        conflicts_with_all = ["json", "ndjson", "paths", "columns"]
+    )]
+    csv: bool,
 
     /// Output file paths only (with #index for TTC faces)
     #[arg(
         long = "paths",
         action = ArgAction::SetTrue,
-        conflicts_with_all = ["json", "ndjson", "columns"]
+        conflicts_with_all = ["json", "ndjson", "csv", "columns"]
     )]
     paths: bool,
 
     /// Output as aligned columns
-    #[arg(long = "columns", action = ArgAction::SetTrue)]
+    #[arg(long = "columns", action = ArgAction::SetTrue, conflicts_with_all = ["json", "ndjson", "csv", "paths"])]
     columns: bool,
 
     /// Show individual TTC/OTC collection faces (path#index); default deduplicates by path
@@ -160,6 +169,10 @@ struct OutputArgs {
     /// Colorize output (auto detects terminal)
     #[arg(long = "color", default_value_t = ColorChoice::Auto, value_enum)]
     color: ColorChoice,
+
+    /// Output custom details (comma-separated list of properties or preset integer 0..9)
+    #[arg(short = 'd', long = "details")]
+    details: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -366,23 +379,31 @@ struct FindArgs {
     jobs: Option<usize>,
 
     /// Emit a single JSON array
-    #[arg(long = "json", action = ArgAction::SetTrue, conflicts_with = "ndjson")]
+    #[arg(long = "json", action = ArgAction::SetTrue, conflicts_with_all = ["ndjson", "csv"])]
     json: bool,
 
     /// Emit newline-delimited JSON
-    #[arg(long = "ndjson", action = ArgAction::SetTrue)]
+    #[arg(long = "ndjson", action = ArgAction::SetTrue, conflicts_with_all = ["json", "csv"])]
     ndjson: bool,
+
+    /// Emit CSV
+    #[arg(
+        long = "csv",
+        action = ArgAction::SetTrue,
+        conflicts_with_all = ["json", "ndjson", "paths_only", "columns"]
+    )]
+    csv: bool,
 
     /// Emit newline-delimited font paths (with #index for TTC)
     #[arg(
         long = "paths",
         action = ArgAction::SetTrue,
-        conflicts_with_all = ["json", "ndjson", "columns"]
+        conflicts_with_all = ["json", "ndjson", "csv", "columns"]
     )]
     paths_only: bool,
 
     /// Format output as padded columns
-    #[arg(long = "columns", action = ArgAction::SetTrue)]
+    #[arg(long = "columns", action = ArgAction::SetTrue, conflicts_with_all = ["json", "ndjson", "csv", "paths_only"])]
     columns: bool,
 
     /// Show individual TTC/OTC collection faces (path#index); default deduplicates by path
@@ -390,12 +411,16 @@ struct FindArgs {
     collections: bool,
 
     /// Only output the count of matching fonts (useful for scripting)
-    #[arg(long = "count", action = ArgAction::SetTrue, conflicts_with_all = ["json", "ndjson", "paths_only", "columns"])]
+    #[arg(long = "count", action = ArgAction::SetTrue, conflicts_with_all = ["json", "ndjson", "csv", "paths_only", "columns"])]
     count_only: bool,
 
     /// Control colorized output (auto|always|never)
     #[arg(long = "color", default_value_t = ColorChoice::Auto, value_enum)]
     color: ColorChoice,
+
+    /// Output custom details (comma-separated list of properties or preset integer 0..9)
+    #[arg(short = 'd', long = "details")]
+    details: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -461,6 +486,9 @@ fn run_find(args: FindArgs) -> Result<()> {
 
     let output = OutputFormat::from_find(&args);
 
+    // Validate details keywords/presets early.
+    let _ = get_effective_properties(&output)?;
+
     // JSON arrays and column output need all results in memory first.
     // JSON needs a closing `]`; columns need to measure the longest path for
     // alignment. Count-only is cheap but also needs the full set.
@@ -470,7 +498,7 @@ fn run_find(args: FindArgs) -> Result<()> {
             println!("{}", matches.len());
             return Ok(());
         }
-        return write_matches(&matches, &output);
+        return write_matches(&matches, &output, &paths);
     }
 
     // Stream results to stdout as they're found
@@ -487,6 +515,14 @@ fn run_find(args: FindArgs) -> Result<()> {
             ColorChoice::Auto => w.is_terminal(),
         };
 
+        // If CSV is active, print header first!
+        if output.csv {
+            if let Ok(props) = get_effective_properties(&output) {
+                let header_cols: Vec<String> = props.iter().map(|p| escape_csv_field(p)).collect();
+                let _ = writeln!(w, "{}", header_cols.join(","));
+            }
+        }
+
         let mut seen = std::collections::HashSet::new();
         for m in rx {
             if output.paths {
@@ -495,17 +531,81 @@ fn run_find(args: FindArgs) -> Result<()> {
                 } else if seen.insert(m.source.path.clone()) {
                     let _ = writeln!(w, "{}", m.source.path.display());
                 }
-            } else if output.ndjson {
-                if let Ok(line) = serde_json::to_string(&m) {
-                    let _ = w.write_all(line.as_bytes());
-                    let _ = w.write_all(b"\n");
+            } else if output.csv {
+                if output.collections || seen.insert(m.source.path.clone()) {
+                    if let Ok(props) = get_effective_properties(&output) {
+                        let mut row_cols = Vec::new();
+                        for prop in &props {
+                            let val = extract_property_value(&m, prop, &paths, output.collections);
+                            let fmt_val = format_value_csv(&val);
+                            row_cols.push(escape_csv_field(&fmt_val));
+                        }
+                        let _ = writeln!(w, "{}", row_cols.join(","));
+                    }
                 }
-            } else if output.collections {
-                let rendered = render_path(&m, use_color, true);
-                let _ = writeln!(w, "{rendered}");
-            } else if seen.insert(m.source.path.clone()) {
-                let rendered = render_path(&m, use_color, false);
-                let _ = writeln!(w, "{rendered}");
+            } else if output.ndjson {
+                if output.collections || seen.insert(m.source.path.clone()) {
+                    if let Ok(props) = get_effective_properties(&output) {
+                        if !props.is_empty() {
+                            if props.len() == 1 && props[0] == "path" {
+                                let path_str = if output.collections {
+                                    m.source.path_with_index()
+                                } else {
+                                    m.source.path.to_string_lossy().to_string()
+                                };
+                                if let Ok(line) = serde_json::to_string(&path_str) {
+                                    let _ = w.write_all(line.as_bytes());
+                                    let _ = w.write_all(b"\n");
+                                }
+                            } else {
+                                let mut map = serde_json::Map::new();
+                                for prop in &props {
+                                    let val = extract_property_value(
+                                        &m,
+                                        prop,
+                                        &paths,
+                                        output.collections,
+                                    );
+                                    map.insert(prop.clone(), val);
+                                }
+                                if let Ok(line) =
+                                    serde_json::to_string(&serde_json::Value::Object(map))
+                                {
+                                    let _ = w.write_all(line.as_bytes());
+                                    let _ = w.write_all(b"\n");
+                                }
+                            }
+                        } else if let Ok(line) = serde_json::to_string(&m) {
+                            let _ = w.write_all(line.as_bytes());
+                            let _ = w.write_all(b"\n");
+                        }
+                    }
+                }
+            } else {
+                // Plain format with details support
+                if output.collections || seen.insert(m.source.path.clone()) {
+                    if let Ok(props) = get_effective_properties(&output) {
+                        if !props.is_empty() {
+                            let mut row_vals = Vec::new();
+                            for prop in &props {
+                                let val =
+                                    extract_property_value(&m, prop, &paths, output.collections);
+                                let fmt_val = match val {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                };
+                                row_vals.push(fmt_val);
+                            }
+                            let _ = writeln!(w, "{}", row_vals.join("  "));
+                        } else if output.collections {
+                            let rendered = render_path(&m, use_color, true);
+                            let _ = writeln!(w, "{rendered}");
+                        } else {
+                            let rendered = render_path(&m, use_color, false);
+                            let _ = writeln!(w, "{rendered}");
+                        }
+                    }
+                }
             }
         }
 
@@ -525,10 +625,12 @@ fn run_serve(args: ServeArgs) -> Result<()> {
 struct OutputFormat {
     json: bool,
     ndjson: bool,
+    csv: bool,
     paths: bool,
     columns: bool,
     collections: bool,
     color: ColorChoice,
+    details: Option<String>,
 }
 
 impl OutputFormat {
@@ -536,10 +638,12 @@ impl OutputFormat {
         Self {
             json: args.json,
             ndjson: args.ndjson,
+            csv: args.csv,
             paths: args.paths_only,
             columns: args.columns,
             collections: args.collections,
             color: args.color,
+            details: args.details.clone(),
         }
     }
 
@@ -547,15 +651,21 @@ impl OutputFormat {
         Self {
             json: args.json,
             ndjson: args.ndjson,
+            csv: args.csv,
             paths: args.paths,
             columns: args.columns,
             collections: args.collections,
             color: args.color,
+            details: args.details.clone(),
         }
     }
 }
 
-fn write_matches(matches: &[TypgFontFaceMatch], format: &OutputFormat) -> Result<()> {
+fn write_matches(
+    matches: &[TypgFontFaceMatch],
+    format: &OutputFormat,
+    roots: &[PathBuf],
+) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
     let use_color = match format.color {
@@ -567,15 +677,565 @@ fn write_matches(matches: &[TypgFontFaceMatch], format: &OutputFormat) -> Result
     if format.paths {
         write_paths(matches, &mut handle, format.collections)?;
     } else if format.ndjson {
-        write_ndjson(matches, &mut handle)?;
+        write_ndjson_filtered(matches, &mut handle, format, roots)?;
     } else if format.json {
-        write_json_pretty(matches, &mut handle)?;
+        write_json_pretty_filtered(matches, &mut handle, format, roots)?;
+    } else if format.csv {
+        write_csv(matches, &mut handle, format, roots)?;
     } else if format.columns {
-        write_columns(matches, &mut handle, use_color, format.collections)?;
+        write_columns_filtered(matches, &mut handle, format, use_color, roots)?;
     } else {
-        write_plain(matches, &mut handle, use_color, format.collections)?;
+        write_plain_filtered(matches, &mut handle, format, use_color, roots)?;
     }
 
+    Ok(())
+}
+
+fn get_relative_path(font_path: &Path, roots: &[PathBuf]) -> String {
+    for root in roots {
+        if let Ok(rel) = font_path.strip_prefix(root) {
+            return rel.to_string_lossy().to_string();
+        }
+        if let (Ok(abs_font), Ok(abs_root)) = (
+            std::fs::canonicalize(font_path),
+            std::fs::canonicalize(root),
+        ) {
+            if let Ok(rel) = abs_font.strip_prefix(&abs_root) {
+                return rel.to_string_lossy().to_string();
+            }
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        if let Ok(rel) = font_path.strip_prefix(&cwd) {
+            return rel.to_string_lossy().to_string();
+        }
+        if let (Ok(abs_font), Ok(abs_cwd)) = (
+            std::fs::canonicalize(font_path),
+            std::fs::canonicalize(&cwd),
+        ) {
+            if let Ok(rel) = abs_font.strip_prefix(&abs_cwd) {
+                return rel.to_string_lossy().to_string();
+            }
+        }
+    }
+    font_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| font_path.to_string_lossy().to_string())
+}
+
+fn parse_details_list(details: &str) -> Result<Vec<String>> {
+    let presets = match details.trim() {
+        "0" => vec!["path".to_string()],
+        "1" => vec![
+            "path".to_string(),
+            "fname".to_string(),
+            "sname".to_string(),
+            "fmt".to_string(),
+        ],
+        "2" => vec![
+            "path".to_string(),
+            "fname".to_string(),
+            "sname".to_string(),
+            "fmt".to_string(),
+            "psname".to_string(),
+            "is_var".to_string(),
+        ],
+        "5" => vec![
+            "path".to_string(),
+            "fname".to_string(),
+            "sname".to_string(),
+            "fmt".to_string(),
+            "psname".to_string(),
+            "is_var".to_string(),
+            "weight".to_string(),
+            "width".to_string(),
+            "family_class".to_string(),
+        ],
+        "8" => vec![
+            "path".to_string(),
+            "fname".to_string(),
+            "sname".to_string(),
+            "fmt".to_string(),
+            "psname".to_string(),
+            "is_var".to_string(),
+            "weight".to_string(),
+            "width".to_string(),
+            "family_class".to_string(),
+            "axes".to_string(),
+            "fea_n".to_string(),
+            "scripts".to_string(),
+        ],
+        "9" => vec![
+            "path".to_string(),
+            "path_r".to_string(),
+            "fmt".to_string(),
+            "fname".to_string(),
+            "sname".to_string(),
+            "psname".to_string(),
+            "tfname".to_string(),
+            "lfname".to_string(),
+            "tsname".to_string(),
+            "lsname".to_string(),
+            "is_var".to_string(),
+            "weight".to_string(),
+            "width".to_string(),
+            "family_class".to_string(),
+            "axes".to_string(),
+            "axes_n".to_string(),
+            "fea".to_string(),
+            "fea_n".to_string(),
+            "scripts".to_string(),
+            "scripts_n".to_string(),
+            "tables".to_string(),
+            "tables_n".to_string(),
+            "creator_names".to_string(),
+            "license_names".to_string(),
+        ],
+        other => {
+            let mut parts = Vec::new();
+            for part in other.split(',') {
+                let trimmed = part.trim();
+                if !trimmed.is_empty() {
+                    let canon = match trimmed {
+                        "variable" => "is_var",
+                        other => other,
+                    };
+                    let valid_keywords = [
+                        "path",
+                        "path_r",
+                        "fmt",
+                        "fname",
+                        "sname",
+                        "psname",
+                        "tfname",
+                        "lfname",
+                        "tsname",
+                        "lsname",
+                        "is_var",
+                        "weight",
+                        "width",
+                        "family_class",
+                        "axes",
+                        "axes_n",
+                        "fea",
+                        "fea_n",
+                        "scripts",
+                        "scripts_n",
+                        "tables",
+                        "tables_n",
+                        "creator_names",
+                        "license_names",
+                    ];
+                    if !valid_keywords.contains(&canon) {
+                        return Err(anyhow!("invalid details keyword: {}", trimmed));
+                    }
+                    parts.push(canon.to_string());
+                }
+            }
+            if parts.is_empty() {
+                return Err(anyhow!("empty details option"));
+            }
+            parts
+        }
+    };
+    Ok(presets)
+}
+
+fn get_effective_properties(format: &OutputFormat) -> Result<Vec<String>> {
+    if let Some(ref d) = format.details {
+        parse_details_list(d)
+    } else if format.csv {
+        Ok(vec![
+            "path".to_string(),
+            "fname".to_string(),
+            "sname".to_string(),
+            "fmt".to_string(),
+            "is_var".to_string(),
+            "weight".to_string(),
+            "width".to_string(),
+        ])
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+fn extract_property_value(
+    m: &TypgFontFaceMatch,
+    prop: &str,
+    roots: &[PathBuf],
+    collections: bool,
+) -> serde_json::Value {
+    match prop {
+        "path" => {
+            if collections {
+                serde_json::Value::String(m.source.path_with_index())
+            } else {
+                serde_json::Value::String(m.source.path.to_string_lossy().to_string())
+            }
+        }
+        "path_r" => {
+            let rel = get_relative_path(&m.source.path, roots);
+            if collections {
+                if let Some(idx) = m.source.ttc_index {
+                    serde_json::Value::String(format!("{}#{}", rel, idx))
+                } else {
+                    serde_json::Value::String(rel)
+                }
+            } else {
+                serde_json::Value::String(rel)
+            }
+        }
+        "fmt" => {
+            let ext = m
+                .source
+                .path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_ascii_lowercase())
+                .unwrap_or_else(|| "unknown".to_string());
+            serde_json::Value::String(ext)
+        }
+        "fname" => {
+            let name = m
+                .metadata
+                .tfname
+                .clone()
+                .or_else(|| m.metadata.lfname.clone())
+                .unwrap_or_else(|| m.metadata.names.first().cloned().unwrap_or_default());
+            serde_json::Value::String(name)
+        }
+        "sname" => {
+            let style = m
+                .metadata
+                .tsname
+                .clone()
+                .or_else(|| m.metadata.lsname.clone())
+                .unwrap_or_default();
+            serde_json::Value::String(style)
+        }
+        "psname" => serde_json::Value::String(m.metadata.psname.clone().unwrap_or_default()),
+        "tfname" => serde_json::Value::String(m.metadata.tfname.clone().unwrap_or_default()),
+        "lfname" => serde_json::Value::String(m.metadata.lfname.clone().unwrap_or_default()),
+        "tsname" => serde_json::Value::String(m.metadata.tsname.clone().unwrap_or_default()),
+        "lsname" => serde_json::Value::String(m.metadata.lsname.clone().unwrap_or_default()),
+        "is_var" => serde_json::Value::Bool(m.metadata.is_variable),
+        "weight" => serde_json::Value::Number(m.metadata.weight_class.unwrap_or_default().into()),
+        "width" => serde_json::Value::Number(m.metadata.width_class.unwrap_or_default().into()),
+        "family_class" => {
+            let fc = m
+                .metadata
+                .family_class
+                .map(|(maj, sub)| format!("{}.{}", maj, sub))
+                .unwrap_or_default();
+            serde_json::Value::String(fc)
+        }
+        "axes" => {
+            let list: Vec<String> = m
+                .metadata
+                .axis_tags
+                .iter()
+                .map(|t| tag_to_string(*t))
+                .collect();
+            serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect())
+        }
+        "axes_n" => serde_json::Value::Number(m.metadata.axis_tags.len().into()),
+        "fea" => {
+            let list: Vec<String> = m
+                .metadata
+                .feature_tags
+                .iter()
+                .map(|t| tag_to_string(*t))
+                .collect();
+            serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect())
+        }
+        "fea_n" => serde_json::Value::Number(m.metadata.feature_tags.len().into()),
+        "scripts" => {
+            let list: Vec<String> = m
+                .metadata
+                .script_tags
+                .iter()
+                .map(|t| tag_to_string(*t))
+                .collect();
+            serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect())
+        }
+        "scripts_n" => serde_json::Value::Number(m.metadata.script_tags.len().into()),
+        "tables" => {
+            let list: Vec<String> = m
+                .metadata
+                .table_tags
+                .iter()
+                .map(|t| tag_to_string(*t))
+                .collect();
+            serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect())
+        }
+        "tables_n" => serde_json::Value::Number(m.metadata.table_tags.len().into()),
+        "creator_names" => serde_json::Value::Array(
+            m.metadata
+                .creator_names
+                .iter()
+                .map(|s| serde_json::Value::String(s.clone()))
+                .collect(),
+        ),
+        "license_names" => serde_json::Value::Array(
+            m.metadata
+                .license_names
+                .iter()
+                .map(|s| serde_json::Value::String(s.clone()))
+                .collect(),
+        ),
+        _ => serde_json::Value::Null,
+    }
+}
+
+fn format_value_csv(val: &serde_json::Value) -> String {
+    match val {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .map(|item| match item {
+                serde_json::Value::String(s) => s.clone(),
+                other => other.to_string(),
+            })
+            .collect::<Vec<_>>()
+            .join(";"),
+        serde_json::Value::Object(obj) => serde_json::to_string(obj).unwrap_or_default(),
+    }
+}
+
+fn escape_csv_field(field: &str) -> String {
+    if field.contains(',') || field.contains('"') || field.contains('\n') || field.contains('\r') {
+        let escaped = field.replace('"', "\"\"");
+        format!("\"{}\"", escaped)
+    } else {
+        field.to_string()
+    }
+}
+
+fn write_csv(
+    matches: &[TypgFontFaceMatch],
+    mut w: impl Write,
+    format: &OutputFormat,
+    roots: &[PathBuf],
+) -> Result<()> {
+    let props = get_effective_properties(format)?;
+    let header_cols: Vec<String> = props.iter().map(|p| escape_csv_field(p)).collect();
+    writeln!(w, "{}", header_cols.join(","))?;
+
+    let mut seen = std::collections::HashSet::new();
+    for m in matches {
+        if format.collections || seen.insert(m.source.path.clone()) {
+            let mut row_cols = Vec::new();
+            for prop in &props {
+                let val = extract_property_value(m, prop, roots, format.collections);
+                let fmt_val = format_value_csv(&val);
+                row_cols.push(escape_csv_field(&fmt_val));
+            }
+            writeln!(w, "{}", row_cols.join(","))?;
+        }
+    }
+    Ok(())
+}
+
+fn write_json_pretty_filtered(
+    matches: &[TypgFontFaceMatch],
+    mut w: impl Write,
+    format: &OutputFormat,
+    roots: &[PathBuf],
+) -> Result<()> {
+    let props = get_effective_properties(format)?;
+    if props.is_empty() {
+        let json = serde_json::to_string_pretty(matches)?;
+        w.write_all(json.as_bytes())?;
+        return Ok(());
+    }
+
+    if props.len() == 1 && props[0] == "path" {
+        let mut paths = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for m in matches {
+            if format.collections || seen.insert(m.source.path.clone()) {
+                let path_str = if format.collections {
+                    m.source.path_with_index()
+                } else {
+                    m.source.path.to_string_lossy().to_string()
+                };
+                paths.push(path_str);
+            }
+        }
+        let json = serde_json::to_string_pretty(&paths)?;
+        w.write_all(json.as_bytes())?;
+    } else {
+        let mut objects = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for m in matches {
+            if format.collections || seen.insert(m.source.path.clone()) {
+                let mut map = serde_json::Map::new();
+                for prop in &props {
+                    let val = extract_property_value(m, prop, roots, format.collections);
+                    map.insert(prop.clone(), val);
+                }
+                objects.push(serde_json::Value::Object(map));
+            }
+        }
+        let json = serde_json::to_string_pretty(&objects)?;
+        w.write_all(json.as_bytes())?;
+    }
+    Ok(())
+}
+
+fn write_ndjson_filtered(
+    matches: &[TypgFontFaceMatch],
+    mut w: impl Write,
+    format: &OutputFormat,
+    roots: &[PathBuf],
+) -> Result<()> {
+    let props = get_effective_properties(format)?;
+    if props.is_empty() {
+        for m in matches {
+            let line = serde_json::to_string(m)?;
+            w.write_all(line.as_bytes())?;
+            w.write_all(b"\n")?;
+        }
+        return Ok(());
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    for m in matches {
+        if format.collections || seen.insert(m.source.path.clone()) {
+            if props.len() == 1 && props[0] == "path" {
+                let path_str = if format.collections {
+                    m.source.path_with_index()
+                } else {
+                    m.source.path.to_string_lossy().to_string()
+                };
+                let line = serde_json::to_string(&path_str)?;
+                w.write_all(line.as_bytes())?;
+                w.write_all(b"\n")?;
+            } else {
+                let mut map = serde_json::Map::new();
+                for prop in &props {
+                    let val = extract_property_value(m, prop, roots, format.collections);
+                    map.insert(prop.clone(), val);
+                }
+                let line = serde_json::to_string(&serde_json::Value::Object(map))?;
+                w.write_all(line.as_bytes())?;
+                w.write_all(b"\n")?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn write_columns_filtered(
+    matches: &[TypgFontFaceMatch],
+    mut w: impl Write,
+    format: &OutputFormat,
+    color: bool,
+    roots: &[PathBuf],
+) -> Result<()> {
+    let props = get_effective_properties(format)?;
+    if props.is_empty() {
+        return write_columns(matches, w, color, format.collections);
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut rows = Vec::new();
+    for m in matches {
+        if format.collections || seen.insert(m.source.path.clone()) {
+            let mut row = Vec::new();
+            for prop in &props {
+                let val = extract_property_value(m, prop, roots, format.collections);
+                let str_val = match val {
+                    serde_json::Value::Null => String::new(),
+                    serde_json::Value::String(s) => s,
+                    serde_json::Value::Array(arr) => arr
+                        .iter()
+                        .map(|item| match item {
+                            serde_json::Value::String(s) => s.clone(),
+                            other => other.to_string(),
+                        })
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    other => other.to_string(),
+                };
+                row.push(str_val);
+            }
+            rows.push(row);
+        }
+    }
+
+    if rows.is_empty() {
+        return Ok(());
+    }
+
+    let num_cols = props.len();
+    let mut col_widths = vec![0; num_cols];
+    for row in &rows {
+        for (i, col) in row.iter().enumerate() {
+            col_widths[i] = col_widths[i].max(col.len());
+        }
+    }
+
+    for row in rows {
+        let mut cols = Vec::new();
+        for (i, col) in row.iter().enumerate() {
+            let width = col_widths[i];
+            let padded = format!("{:<width$}", col);
+            let rendered_col = if i == 0 {
+                apply_color(&padded, color, AnsiColor::Cyan)
+            } else if i == 1 {
+                apply_color(&padded, color, AnsiColor::Yellow)
+            } else {
+                apply_color(&padded, color, AnsiColor::Green)
+            };
+            cols.push(rendered_col);
+        }
+        writeln!(w, "{}", cols.join("  "))?;
+    }
+
+    Ok(())
+}
+
+fn write_plain_filtered(
+    matches: &[TypgFontFaceMatch],
+    mut w: impl Write,
+    format: &OutputFormat,
+    color: bool,
+    roots: &[PathBuf],
+) -> Result<()> {
+    let props = get_effective_properties(format)?;
+    if props.is_empty() {
+        return write_plain(matches, w, color, format.collections);
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    for m in matches {
+        if format.collections || seen.insert(m.source.path.clone()) {
+            let mut row = Vec::new();
+            for prop in &props {
+                let val = extract_property_value(m, prop, roots, format.collections);
+                let str_val = match val {
+                    serde_json::Value::Null => String::new(),
+                    serde_json::Value::String(s) => s,
+                    serde_json::Value::Array(arr) => arr
+                        .iter()
+                        .map(|item| match item {
+                            serde_json::Value::String(s) => s.clone(),
+                            other => other.to_string(),
+                        })
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    other => other.to_string(),
+                };
+                row.push(str_val);
+            }
+            writeln!(w, "{}", row.join("  "))?;
+        }
+    }
     Ok(())
 }
 
@@ -864,11 +1524,7 @@ fn write_plain(
 /// in which case TTC faces appear as `path#0`, `path#1`, etc.).
 /// Downstream tools like `typf`, `fontlift`, or shell loops can consume
 /// this directly.
-fn write_paths(
-    matches: &[TypgFontFaceMatch],
-    mut w: impl Write,
-    collections: bool,
-) -> Result<()> {
+fn write_paths(matches: &[TypgFontFaceMatch], mut w: impl Write, collections: bool) -> Result<()> {
     if collections {
         for item in matches {
             writeln!(w, "{}", item.source.path_with_index())?;
@@ -1051,7 +1707,7 @@ fn run_cache_list(args: CacheListArgs) -> Result<()> {
     let cache_path = resolve_cache_path(&args.cache_path)?;
     let entries = load_cache(&cache_path)?;
     let output = OutputFormat::from_output(&args.output);
-    write_matches(&entries, &output)
+    write_matches(&entries, &output, &[])
 }
 
 fn run_cache_find(args: CacheFindArgs) -> Result<()> {
@@ -1093,7 +1749,7 @@ fn run_cache_find(args: CacheFindArgs) -> Result<()> {
     }
 
     let output = OutputFormat::from_output(&args.output);
-    write_matches(&matches, &output)
+    write_matches(&matches, &output, &[])
 }
 
 fn run_cache_clean(args: CacheCleanArgs, quiet: bool) -> Result<()> {
@@ -1373,16 +2029,7 @@ fn run_cache_add_index(args: CacheAddArgs, quiet: bool) -> Result<()> {
             &entry.source.path,
             entry.source.ttc_index,
             mtime,
-            entry.metadata.names.clone(),
-            &entry.metadata.axis_tags,
-            &entry.metadata.feature_tags,
-            &entry.metadata.script_tags,
-            &entry.metadata.table_tags,
-            &entry.metadata.codepoints,
-            entry.metadata.is_variable,
-            entry.metadata.weight_class,
-            entry.metadata.width_class,
-            entry.metadata.family_class,
+            &entry.metadata,
         )?;
         added += 1;
     }
@@ -1410,7 +2057,7 @@ fn run_cache_list_index(args: CacheListArgs) -> Result<()> {
     let reader = index.reader()?;
     let entries = reader.list_all()?;
     let output = OutputFormat::from_output(&args.output);
-    write_matches(&entries, &output)
+    write_matches(&entries, &output, &[])
 }
 
 #[cfg(feature = "hpindex")]
@@ -1443,7 +2090,7 @@ fn run_cache_find_index(args: CacheFindArgs) -> Result<()> {
     }
 
     let output = OutputFormat::from_output(&args.output);
-    write_matches(&matches, &output)
+    write_matches(&matches, &output, &[])
 }
 
 #[cfg(feature = "hpindex")]

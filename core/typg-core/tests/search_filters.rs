@@ -27,6 +27,11 @@ fn metadata_with(
         family_class,
         creator_names: Vec::new(),
         license_names: Vec::new(),
+        psname: None,
+        tfname: None,
+        lfname: None,
+        tsname: None,
+        lsname: None,
     }
 }
 

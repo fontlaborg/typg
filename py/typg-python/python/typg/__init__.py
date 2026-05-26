@@ -11,7 +11,7 @@ should feel like running into an old friend, not searching for lost keys.
 ## The Essentials
 
 - **find()**: Stroll through directories, collect font friends
-- **find_paths()**: Just the GPS coordinates when you want to visit yourself  
+- **find_paths()**: Just the GPS coordinates when you want to visit yourself
 - **filter_cached()**: Browse your collection without bothering the disk
 - **find_indexed()**: Sprint through pre-built indexes when caffeine wears off
 
@@ -40,7 +40,7 @@ installed_fonts = typg.filter_cached(cached_data, query=lambda q: q.has_feature(
 
 The query system actually listens:
 - Script support (has_script) - "Find fonts that read Arabic"
-- Variable font axes (has_axis) - "Show me fonts with weight knobs"  
+- Variable font axes (has_axis) - "Show me fonts with weight knobs"
 - OpenType features (has_feature) - "I need those pretty ligatures"
 - Font names (name_contains, name_matches) - "Remember fonts with 'Garamond'"
 - Variable fonts only (is_variable) - "Just the flexible ones, thanks"
@@ -87,5 +87,7 @@ except ImportError:
 # Version detection with fallback for development installs
 try:
     __version__ = metadata.version(__name__)
-except metadata.PackageNotFoundError:  # pragma: no cover - you're developing locally, cool!
+except (
+    metadata.PackageNotFoundError
+):  # pragma: no cover - you're developing locally, cool!
     __version__ = "0.0.0"

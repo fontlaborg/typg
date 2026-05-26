@@ -77,6 +77,16 @@ struct MetadataInput {
     /// License-related name strings (copyright, license, license URL)
     #[pyo3(default)]
     license_names: Vec<String>,
+    #[pyo3(default)]
+    psname: Option<String>,
+    #[pyo3(default)]
+    tfname: Option<String>,
+    #[pyo3(default)]
+    lfname: Option<String>,
+    #[pyo3(default)]
+    tsname: Option<String>,
+    #[pyo3(default)]
+    lsname: Option<String>,
 }
 
 /// Search directories and return matching fonts as Python dictionaries.
@@ -429,6 +439,11 @@ fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch
                         .map(|raw| (((raw >> 8) & 0xFF) as u8, (raw & 0x00FF) as u8)),
                     creator_names: entry.creator_names,
                     license_names: entry.license_names,
+                    psname: entry.psname,
+                    tfname: entry.tfname,
+                    lfname: entry.lfname,
+                    tsname: entry.tsname,
+                    lsname: entry.lsname,
                 },
             })
         })
@@ -573,6 +588,11 @@ fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Ve
             meta_dict.set_item("family_class", meta.family_class)?;
             meta_dict.set_item("creator_names", meta.creator_names.clone())?;
             meta_dict.set_item("license_names", meta.license_names.clone())?;
+            meta_dict.set_item("psname", meta.psname.clone())?;
+            meta_dict.set_item("tfname", meta.tfname.clone())?;
+            meta_dict.set_item("lfname", meta.lfname.clone())?;
+            meta_dict.set_item("tsname", meta.tsname.clone())?;
+            meta_dict.set_item("lsname", meta.lsname.clone())?;
 
             let outer = PyDict::new(py);
             outer.set_item("path", item.source.path.to_string_lossy().to_string())?;
@@ -625,6 +645,11 @@ mod tests {
             family_class: None,
             creator_names: Vec::new(),
             license_names: Vec::new(),
+            psname: None,
+            tfname: None,
+            lfname: None,
+            tsname: None,
+            lsname: None,
         }
     }
 
@@ -779,21 +804,31 @@ mod tests {
         {
             let index = FontIndex::open(&index_path).unwrap();
             let mut writer = index.writer().unwrap();
+            let meta = TypgFontFaceMeta {
+                names: vec!["Indexed Font".to_string()],
+                axis_tags: vec![Tag::new(b"wght")],
+                feature_tags: vec![Tag::new(b"smcp")],
+                script_tags: vec![Tag::new(b"latn")],
+                table_tags: Vec::new(),
+                codepoints: vec!['a', 'b', 'c'],
+                is_variable: true,
+                weight_class: Some(400),
+                width_class: Some(5),
+                family_class: None,
+                creator_names: Vec::new(),
+                license_names: Vec::new(),
+                psname: None,
+                tfname: None,
+                lfname: None,
+                tsname: None,
+                lsname: None,
+            };
             writer
                 .add_font(
                     Path::new("/test/IndexedFont.ttf"),
                     None,
                     SystemTime::UNIX_EPOCH,
-                    vec!["Indexed Font".to_string()],
-                    &[Tag::new(b"wght")],
-                    &[Tag::new(b"smcp")],
-                    &[Tag::new(b"latn")],
-                    &[],
-                    &['a', 'b', 'c'],
-                    true,
-                    Some(400),
-                    Some(5),
-                    None,
+                    &meta,
                 )
                 .unwrap();
             writer.commit().unwrap();

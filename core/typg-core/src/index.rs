@@ -20,7 +20,7 @@ use roaring::RoaringBitmap;
 use serde::{Deserialize, Serialize};
 
 use crate::query::{FamilyClassFilter, Query};
-use crate::search::TypgFontFaceMatch;
+use crate::search::{TypgFontFaceMatch, TypgFontFaceMeta};
 
 /// Numeric identifier assigned to each indexed font face.
 pub type FontID = u64;
@@ -50,6 +50,21 @@ pub struct IndexedFontMeta {
     pub family_class: Option<(u8, u8)>,
     /// Serialized Roaring Bitmap of Unicode codepoints covered by the font.
     pub cmap_bitmap: Vec<u8>,
+    /// PostScript Name (ID 6)
+    #[serde(default)]
+    pub psname: Option<String>,
+    /// Typographic Family Name (ID 16)
+    #[serde(default)]
+    pub tfname: Option<String>,
+    /// Legacy Family Name (ID 1)
+    #[serde(default)]
+    pub lfname: Option<String>,
+    /// Typographic Subfamily Name (ID 17)
+    #[serde(default)]
+    pub tsname: Option<String>,
+    /// Legacy Subfamily Name (ID 2)
+    #[serde(default)]
+    pub lsname: Option<String>,
 }
 
 /// Stored record mapping a path hash to its font ID and last-modified time.
@@ -178,22 +193,12 @@ impl<'a> IndexWriter<'a> {
     }
 
     /// Add a font face to the index.
-    #[allow(clippy::too_many_arguments)]
     pub fn add_font(
         &mut self,
         path: &Path,
         ttc_index: Option<u32>,
         mtime: SystemTime,
-        names: Vec<String>,
-        axis_tags: &[Tag],
-        feature_tags: &[Tag],
-        script_tags: &[Tag],
-        table_tags: &[Tag],
-        codepoints: &[char],
-        is_variable: bool,
-        weight_class: Option<u16>,
-        width_class: Option<u16>,
-        family_class: Option<(u8, u8)>,
+        meta: &TypgFontFaceMeta,
     ) -> Result<FontID> {
         let path_hash = hash_path(path);
         let mtime_secs = mtime
@@ -213,22 +218,27 @@ impl<'a> IndexWriter<'a> {
         let font_id = self.index.alloc_id();
 
         // Build Roaring Bitmap for cmap coverage.
-        let cmap_bitmap = build_cmap_bitmap(codepoints);
+        let cmap_bitmap = build_cmap_bitmap(&meta.codepoints);
 
         // Serialize metadata with bincode.
-        let meta = IndexedFontMeta {
+        let meta_to_store = IndexedFontMeta {
             path: path.display().to_string(),
             ttc_index,
-            names,
-            is_variable,
-            weight_class,
-            width_class,
-            family_class,
+            names: meta.names.clone(),
+            is_variable: meta.is_variable,
+            weight_class: meta.weight_class,
+            width_class: meta.width_class,
+            family_class: meta.family_class,
             cmap_bitmap,
+            psname: meta.psname.clone(),
+            tfname: meta.tfname.clone(),
+            lfname: meta.lfname.clone(),
+            tsname: meta.tsname.clone(),
+            lsname: meta.lsname.clone(),
         };
 
-        let meta_bytes =
-            bincode::serialize(&meta).map_err(|e| anyhow::anyhow!("bincode serialize: {e}"))?;
+        let meta_bytes = bincode::serialize(&meta_to_store)
+            .map_err(|e| anyhow::anyhow!("bincode serialize: {e}"))?;
         self.index
             .db_metadata
             .put(&mut self.wtxn, &font_id, &meta_bytes)?;
@@ -245,17 +255,18 @@ impl<'a> IndexWriter<'a> {
         )?;
 
         // Update inverted indices for all tags.
-        for tag in axis_tags
+        for tag in meta
+            .axis_tags
             .iter()
-            .chain(feature_tags)
-            .chain(script_tags)
-            .chain(table_tags)
+            .chain(&meta.feature_tags)
+            .chain(&meta.script_tags)
+            .chain(&meta.table_tags)
         {
             self.add_to_inverted_index(tag_to_u32(*tag), font_id)?;
         }
 
         // Add special markers for variable fonts.
-        if is_variable {
+        if meta.is_variable {
             self.add_to_inverted_index(tag_marker(b"_VAR"), font_id)?;
         }
 
@@ -550,6 +561,11 @@ fn hydrate_match(meta: &IndexedFontMeta) -> TypgFontFaceMatch {
             family_class: meta.family_class,
             creator_names: Vec::new(), // Not stored in indexed form
             license_names: Vec::new(), // Not stored in indexed form
+            psname: meta.psname.clone(),
+            tfname: meta.tfname.clone(),
+            lfname: meta.lfname.clone(),
+            tsname: meta.tsname.clone(),
+            lsname: meta.lsname.clone(),
         },
     }
 }
@@ -613,6 +629,37 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    fn make_mock_meta(
+        names: Vec<String>,
+        feature_tags: &[Tag],
+        script_tags: &[Tag],
+        codepoints: &[char],
+        is_variable: bool,
+        weight_class: Option<u16>,
+        width_class: Option<u16>,
+        family_class: Option<(u8, u8)>,
+    ) -> TypgFontFaceMeta {
+        TypgFontFaceMeta {
+            names,
+            axis_tags: Vec::new(),
+            feature_tags: feature_tags.to_vec(),
+            script_tags: script_tags.to_vec(),
+            table_tags: Vec::new(),
+            codepoints: codepoints.to_vec(),
+            is_variable,
+            weight_class,
+            width_class,
+            family_class,
+            creator_names: Vec::new(),
+            license_names: Vec::new(),
+            psname: None,
+            tfname: None,
+            lfname: None,
+            tsname: None,
+            lsname: None,
+        }
+    }
+
     #[test]
     fn test_index_open_and_close() {
         let dir = TempDir::new().unwrap();
@@ -630,23 +677,18 @@ mod tests {
         let path = Path::new("/test/font.ttf");
         let mtime = SystemTime::UNIX_EPOCH;
 
-        writer
-            .add_font(
-                path,
-                None,
-                mtime,
-                vec!["Test Font".to_string()],
-                &[],
-                &[Tag::new(b"smcp")],
-                &[Tag::new(b"latn")],
-                &[],
-                &['a', 'b', 'c'],
-                false,
-                Some(400),
-                Some(5),
-                Some((8, 1)),
-            )
-            .unwrap();
+        let meta = make_mock_meta(
+            vec!["Test Font".to_string()],
+            &[Tag::new(b"smcp")],
+            &[Tag::new(b"latn")],
+            &['a', 'b', 'c'],
+            false,
+            Some(400),
+            Some(5),
+            Some((8, 1)),
+        );
+
+        writer.add_font(path, None, mtime, &meta).unwrap();
         writer.commit().unwrap();
 
         assert_eq!(index.count().unwrap(), 1);
@@ -672,23 +714,17 @@ mod tests {
         {
             let mut writer = index.writer().unwrap();
             assert!(writer.needs_update(path, mtime1).unwrap());
-            writer
-                .add_font(
-                    path,
-                    None,
-                    mtime1,
-                    vec!["V1".to_string()],
-                    &[],
-                    &[],
-                    &[],
-                    &[],
-                    &[],
-                    false,
-                    None,
-                    None,
-                    None,
-                )
-                .unwrap();
+            let meta = make_mock_meta(
+                vec!["V1".to_string()],
+                &[],
+                &[],
+                &[],
+                false,
+                None,
+                None,
+                None,
+            );
+            writer.add_font(path, None, mtime1, &meta).unwrap();
             writer.commit().unwrap();
         }
 
@@ -715,38 +751,40 @@ mod tests {
         // Add two fonts with different features.
         {
             let mut writer = index.writer().unwrap();
+            let meta1 = make_mock_meta(
+                vec!["Font1".to_string()],
+                &[Tag::new(b"smcp"), Tag::new(b"liga")],
+                &[],
+                &[],
+                false,
+                None,
+                None,
+                None,
+            );
             writer
                 .add_font(
                     Path::new("/font1.ttf"),
                     None,
                     SystemTime::UNIX_EPOCH,
-                    vec!["Font1".to_string()],
-                    &[],
-                    &[Tag::new(b"smcp"), Tag::new(b"liga")],
-                    &[],
-                    &[],
-                    &[],
-                    false,
-                    None,
-                    None,
-                    None,
+                    &meta1,
                 )
                 .unwrap();
+            let meta2 = make_mock_meta(
+                vec!["Font2".to_string()],
+                &[Tag::new(b"smcp")],
+                &[],
+                &[],
+                false,
+                None,
+                None,
+                None,
+            );
             writer
                 .add_font(
                     Path::new("/font2.ttf"),
                     None,
                     SystemTime::UNIX_EPOCH,
-                    vec!["Font2".to_string()],
-                    &[],
-                    &[Tag::new(b"smcp")],
-                    &[],
-                    &[],
-                    &[],
-                    false,
-                    None,
-                    None,
-                    None,
+                    &meta2,
                 )
                 .unwrap();
             writer.commit().unwrap();
@@ -789,42 +827,39 @@ mod tests {
         {
             let mut writer = index.writer().unwrap();
             // This path doesn't exist.
+            let meta_missing = make_mock_meta(
+                vec!["Missing".to_string()],
+                &[],
+                &[],
+                &[],
+                false,
+                None,
+                None,
+                None,
+            );
             writer
                 .add_font(
                     Path::new("/nonexistent/font.ttf"),
                     None,
                     SystemTime::UNIX_EPOCH,
-                    vec!["Missing".to_string()],
-                    &[],
-                    &[],
-                    &[],
-                    &[],
-                    &[],
-                    false,
-                    None,
-                    None,
-                    None,
+                    &meta_missing,
                 )
                 .unwrap();
 
             // Use an existing file (any test file that exists).
             let existing_path = Path::new(env!("CARGO_MANIFEST_DIR"));
+            let meta_existing = make_mock_meta(
+                vec!["Existing".to_string()],
+                &[],
+                &[],
+                &[],
+                false,
+                None,
+                None,
+                None,
+            );
             writer
-                .add_font(
-                    existing_path,
-                    None,
-                    SystemTime::UNIX_EPOCH,
-                    vec!["Existing".to_string()],
-                    &[],
-                    &[],
-                    &[],
-                    &[],
-                    &[],
-                    false,
-                    None,
-                    None,
-                    None,
-                )
+                .add_font(existing_path, None, SystemTime::UNIX_EPOCH, &meta_existing)
                 .unwrap();
             writer.commit().unwrap();
         }
