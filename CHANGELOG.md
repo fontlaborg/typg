@@ -3,6 +3,9 @@
 made by FontLab https://www.fontlab.com/
 
 ## v0.0.0 (unreleased)
+- **Release/CI path corrections**: The `typg-python` crate lives at `py/typg-python/`, but `ci.yml` and `release.yml` still referenced a top-level `typg-python/`. Fixed the pytest job (`maturin develop --manifest-path py/typg-python/Cargo.toml`, `pytest py/typg-python/tests`) and the wheel build (build from the workspace root with `--manifest-path py/typg-python/Cargo.toml` so the `typg-core` path dependency resolves inside the manylinux container; upload wheels from the workspace-level `target/wheels`).
+- **`.gitignore` hygiene**: Ignore agent/orchestration state (`.omc/`, `.codegraph/`, `.swarm/`, `.cursor/`) and correct the stale maturin target path to `py/typg-python/target/`.
+- **Project icon**: Added `docs/assets/icon.png`, a single-line pen illustration used as the repo's concept icon.
 - **Multi-wise `--scripts` matching**:
   - `--scripts` now accepts both ISO 15924 (`Latn`, `Deva`) and OpenType (`latn`, `dev2`) tags, case-insensitively.
   - Each input resolves to an OpenType tag *group* (Indic scripts expand to all shaping variants, e.g. `deva` → `deva`/`dev2`/`dev3`) plus a Unicode script.

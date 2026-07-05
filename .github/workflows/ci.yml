@@ -46,6 +46,23 @@ jobs:
       - name: tests
         run: cargo test --workspace
 
+  # Exercise the optional LMDB-backed index path so the hpindex code doesn't rot.
+  hpindex:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust (stable)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: hpindex
+      - name: tests (hpindex feature)
+        run: cargo test -p typg-core --features hpindex
+
   python:
     needs: lint
     runs-on: ubuntu-latest
@@ -72,11 +89,11 @@ jobs:
         shell: bash
         run: |
           source .venv/bin/activate
-          maturin develop --manifest-path typg-python/Cargo.toml --locked
+          maturin develop --manifest-path py/typg-python/Cargo.toml --locked
       - name: Python tests (pytest)
         shell: bash
         run: |
           source .venv/bin/activate
-          pytest typg-python/tests
+          pytest py/typg-python/tests
       - name: Rust tests for bindings
         run: cargo test -p typg-python --tests

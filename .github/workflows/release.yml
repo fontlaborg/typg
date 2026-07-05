@@ -58,14 +58,16 @@ jobs:
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux || 'auto' }}
-          working-directory: typg-python
-          args: --release --features extension-module
+          # Build from the workspace root so the `typg-core` path dependency
+          # (../../core/typg-core) resolves inside the manylinux container;
+          # wheels land in the workspace-level target/wheels.
+          args: --release --features extension-module --manifest-path py/typg-python/Cargo.toml
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: python-wheels-${{ matrix.target }}
-          path: typg-python/target/wheels/*.whl
+          path: target/wheels/*.whl
 
   publish-pypi:
     name: Publish wheels to PyPI

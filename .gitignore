@@ -15,6 +15,8 @@ __pycache__/
 *$py.class
 *.so
 *.pyd
+*.dylib
+*.dSYM/
 *.egg-info/
 .venv/
 venv/
@@ -32,7 +34,7 @@ dmypy.json
 .pytype/
 
 # Maturin (Python-Rust bindings)
-typg-python/target/
+py/typg-python/target/
 
 # ============================================================================
 # IDE / Editor
@@ -79,5 +81,9 @@ coverage.xml
 external/
 llms.txt
 /.claude
-.DS_Store
-.DS_Store
+
+# Agent / orchestration state (never commit)
+.omc/
+.codegraph/
+.swarm/
+.cursor/
