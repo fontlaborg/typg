@@ -147,8 +147,8 @@ check_dependencies() {
 		log_warning "CARGO_REGISTRY_TOKEN not set; crates.io publish will fail"
 	fi
 
-	if [[ -z "${UV_PUBLISH_TOKEN:-}" && -z "${PYPI_TOKEN:-}" ]]; then
-		log_warning "No PyPI token (UV_PUBLISH_TOKEN or PYPI_TOKEN) detected; PyPI publish may fail"
+	if ! gh auth status >/dev/null 2>&1; then
+		log_warning "gh is not logged in; PyPI upload (scripts/pypi-upload.sh, Trusted Publishing) will fail"
 	fi
 
 	log_success "All publishing dependencies found"
@@ -373,14 +373,8 @@ publish_python_package() {
 		return 1
 	fi
 
-	# Publish to PyPI using uv
-	local publish_token="${PYPI_TOKEN:-${UV_PUBLISH_TOKEN:-}}"
-	local publish_args=()
-	if [[ -n "$publish_token" ]]; then
-		publish_args+=(--token "$publish_token")
-	fi
-
-	if uv publish "${publish_args[@]}" "$wheel_file"; then
+	# Publish to PyPI through Trusted Publishing (draft release + pypi-upload.yml)
+	if "$PROJECT_ROOT/scripts/pypi-upload.sh" "$wheel_file"; then
 		log_success "Published $package_name to PyPI"
 		cd "$PROJECT_ROOT"
 		return 0
