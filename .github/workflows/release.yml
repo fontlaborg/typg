@@ -139,8 +139,9 @@ jobs:
       - build-wheels
       - publish-pypi
       - publish-crates
+    # Release the built wheels even when a registry upload is skipped or fails.
+    if: ${{ !cancelled() && needs.build-wheels.result == 'success' }}
     runs-on: ubuntu-latest
-    if: ${{ needs.build-wheels.result == 'success' }}
     steps:
       - uses: actions/checkout@v4
         with:
