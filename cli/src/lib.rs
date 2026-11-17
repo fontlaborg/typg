@@ -1928,7 +1928,7 @@ fn merge_entries(
 ) -> Vec<TypgFontFaceMatch> {
     let mut map: HashMap<(PathBuf, Option<u32>), TypgFontFaceMatch> = HashMap::new();
 
-    for entry in existing.into_iter().chain(additions.into_iter()) {
+    for entry in existing.into_iter().chain(additions) {
         map.insert(cache_key(&entry), entry);
     }
 
