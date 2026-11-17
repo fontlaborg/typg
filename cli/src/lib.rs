@@ -1407,11 +1407,10 @@ fn read_paths_from(reader: &mut impl BufRead) -> Result<Vec<PathBuf>> {
 /// - Linux: `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.local/share/fonts`
 /// - Windows: `%SYSTEMROOT%\Fonts`, `%LOCALAPPDATA%\Microsoft\Windows\Fonts`
 fn system_font_roots() -> Result<Vec<PathBuf>> {
-    if let Ok(raw) = env::var("TYPOG_SYSTEM_FONT_DIRS") {
-        let mut overrides: Vec<PathBuf> = raw
-            .split([':', ';'])
-            .filter(|s| !s.is_empty())
-            .map(PathBuf::from)
+    if let Some(raw) = env::var_os("TYPOG_SYSTEM_FONT_DIRS") {
+        // split_paths uses ':' on Unix and ';' on Windows, keeping drive letters (C:\) intact.
+        let mut overrides: Vec<PathBuf> = env::split_paths(&raw)
+            .filter(|p| !p.as_os_str().is_empty())
             .filter(|p| p.exists())
             .collect();
 
