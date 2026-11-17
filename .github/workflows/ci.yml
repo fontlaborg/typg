@@ -35,6 +35,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      # typg-python links libpython; use a framework-installed Python, not the runner's preview build.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Set up Rust (stable)
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -45,6 +49,8 @@ jobs:
           key: ${{ matrix.os }}
       - name: tests
         run: cargo test --workspace
+        env:
+          PYO3_PYTHON: python
 
   # Exercise the optional LMDB-backed index path so the hpindex code doesn't rot.
   hpindex:
