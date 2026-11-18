@@ -48,6 +48,8 @@ pub struct SearchRequest {
     pub license: Vec<String>,
     /// Unicode codepoints that must be present in the font.
     pub codepoints: Vec<String>,
+    /// Glyph names (post 2.0 / CFF charset) that must all be present.
+    pub glyph_names: Vec<String>,
     /// Sample text whose codepoints must all be present.
     pub text: Option<String>,
     /// Restrict results to variable fonts.
@@ -131,6 +133,7 @@ async fn search_handler(
         &req.creator,
         &req.license,
         &req.codepoints,
+        &req.glyph_names,
         &req.text,
         req.variable,
         &req.weight,

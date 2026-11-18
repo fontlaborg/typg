@@ -60,6 +60,11 @@ pub struct Query {
     /// The font must have glyphs for *all* listed codepoints.
     codepoints: Vec<char>,
 
+    /// Glyph names the font must carry (in `post` format 2.0 or the `CFF `
+    /// charset). The font must contain *all* listed names; matching is exact
+    /// and case-sensitive.
+    glyph_names: Vec<String>,
+
     /// When `true`, only variable fonts (those with an `fvar` table) match.
     /// When `false` (default), both static and variable fonts can match.
     variable_only: bool,
@@ -138,6 +143,14 @@ impl Query {
         self
     }
 
+    /// Require the font to contain *all* of these glyph names (exact,
+    /// case-sensitive), as stored in `post` format 2.0 or the `CFF ` charset.
+    /// Example: `vec!["Aacute".into(), "f_f_i".into()]`
+    pub fn with_glyph_names(mut self, names: Vec<String>) -> Self {
+        self.glyph_names = names;
+        self
+    }
+
     /// When `true`, only variable fonts match. Default: `false` (both match).
     pub fn require_variable(mut self, yes: bool) -> Self {
         self.variable_only = yes;
@@ -202,6 +215,11 @@ impl Query {
     /// The required codepoints, if any.
     pub fn codepoints(&self) -> &[char] {
         &self.codepoints
+    }
+
+    /// The required glyph names, if any.
+    pub fn glyph_names(&self) -> &[String] {
+        &self.glyph_names
     }
 
     /// Whether only variable fonts are accepted.
@@ -316,6 +334,12 @@ impl Query {
             }
         }
 
+        if !self.glyph_names.is_empty()
+            && !contains_all_glyph_names(&meta.glyph_names, &self.glyph_names)
+        {
+            return false;
+        }
+
         if !self.name_patterns.is_empty() {
             let matched = meta
                 .names
@@ -358,6 +382,13 @@ fn contains_all_tags(haystack: &[Tag], needles: &[Tag]) -> bool {
     }
     let set: HashSet<Tag> = haystack.iter().copied().collect();
     needles.iter().all(|tag| set.contains(tag))
+}
+
+/// Check that `available` contains every name in `required` (exact match).
+/// `available` need not be sorted: caches and bindings may supply any order.
+fn contains_all_glyph_names(available: &[String], required: &[String]) -> bool {
+    let set: HashSet<&str> = available.iter().map(String::as_str).collect();
+    required.iter().all(|name| set.contains(name.as_str()))
 }
 
 /// Parse a comma-separated list of codepoints or ranges into a `Vec<char>`.

@@ -9,7 +9,7 @@ Ultra-fast font search/discovery toolkit in Rust with a matching Python API. typ
 - `typg-python`: PyO3 bindings plus a Fire/Typer CLI shim (`typgpy`) so Python users get the same surface.
 
 ## Status
-- Live scans work: axes/features/scripts/tables/name/regex/codepoints/text filters plus STDIN/system font discovery.
+- Live scans work: axes/features/scripts/tables/name/regex/codepoints/text/glyph-name filters plus STDIN/system font discovery.
 - Cache path now ships: `typg cache add/list/find/clean` writes a JSON cache file; `--jobs` controls ingest/search threads.
 - OS/2 weight, width, and family-class filters now ship across Rust/Python/HTTP surfaces.
 - Creator and license regex search (`-c`/`-l`) across name table fields (copyright, trademark, manufacturer, designer, description, URLs, license).
@@ -29,6 +29,7 @@ indexing, no image rendering — just table reads and tag comparisons.
 | `name` | Human-readable strings: family name, designer, copyright | `--name`, `--creator`, `--license` filters |
 | `OS/2` | Weight class (100=Thin → 900=Black), width class (1–9), family class (serif vs sans-serif) | `--weight`, `--width`, `--family-class` filters |
 | `cmap` | Mapping from Unicode codepoints to glyphs — the font's promise that it can draw a character | `--codepoints`, `--text` filters |
+| `post` / `CFF ` | Glyph names (`post` format 2.0 in TrueType fonts, the charset in CFF fonts), e.g. `a.sc`, `f_f_i`, `uni0628` | `--glyph-names` filter |
 | `fvar` | Variable font axes: `wght` (weight), `wdth` (width), `opsz` (optical size), `ital`, `slnt` | `--axes`, `--variable` filters |
 | `GSUB` | Glyph substitution rules — features like `liga` (ligatures), `smcp` (small capitals), `onum` (oldstyle numerals) | `--features` filter |
 | `GPOS` | Glyph positioning rules — features like `kern` (kerning), `mark` (diacritics placement) | `--features` filter |
@@ -85,6 +86,7 @@ maturin develop --locked
 - Control worker count when scanning: `typg find --jobs 4 --variable ~/Fonts` (defaults to CPU count)
 - Filter OS/2 classifications: `typg find --weight 300-500 --width 5 --family-class sans ~/Fonts`
 - Search by creator/maker (regex across copyright, trademark, manufacturer, designer, description, URLs, license fields): `typg find --creator "FontLab" ~/Fonts`
+- Search by glyph names (exact, case-sensitive; a font must contain *all* of them): `typg find --glyph-names a.sc,f_f_i ~/Fonts` or `-g a.sc -g f_f_i`. Names come from `post` format 2.0 or the `CFF ` charset; fonts with `post` format 3.0 and no CFF table have no names and never match.
 - Search by license (regex across copyright, license description, license URL): `typg find --license "OFL|Apache" ~/Fonts`
 - JSON output: add `--json` (array) or `--ndjson` (one match per line). Columns/plain auto-colorize unless `--color never`.
 - Paths-only output for piping into typf/fontlift/testypf: `typg find --paths ~/Fonts` (also works with `cache list/find`).

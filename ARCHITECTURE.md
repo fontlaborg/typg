@@ -9,8 +9,8 @@ typg is a three-crate workspace that keeps parsing/rendering logic in the Rust c
 
 ## Data flow (live scan)
 1. **Discovery**: `PathDiscovery` walks provided roots (optionally follows symlinks or system font dirs via `TYPOG_SYSTEM_FONT_DIRS`).
-2. **Metadata load**: `read-fonts` parses each face (handles TTC/OTC) into names, tables, feature/script tags, axes, and codepoints via `skrifa`.
-3. **Filtering**: `Query` matches tags, regexes, codepoints, and variable-ness; cached metadata can skip file IO via `filter_cached`.
+2. **Metadata load**: `read-fonts` parses each face (handles TTC/OTC) into names, tables, feature/script tags, axes, codepoints, and glyph names (`post` 2.0 / `CFF ` charset) via `skrifa`.
+3. **Filtering**: `Query` matches tags, regexes, codepoints, glyph names (all required), and variable-ness; cached metadata can skip file IO via `filter_cached`.
 4. **Output**: `TypgFontFaceMatch` structs stream to JSON/NDJSON or columnar/plain text; Python bindings return dicts.
 
 ## Reuse points from typf/fontations

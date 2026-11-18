@@ -190,3 +190,35 @@ def test_name_fields_in_metadata(fonts_dir: Path) -> None:
     assert meta["psname"] == "NotoSans-Regular"
     assert meta["lfname"] == "Noto Sans"
     assert meta["lsname"] == "Regular"
+
+
+def test_filter_cached_glyph_names_require_all() -> None:
+    # Glyph-name filters use AND semantics: every requested name must exist.
+    full = _metadata("Full.ttf")
+    full.glyph_names = ["a", "a.sc", "f_f_i"]
+    partial = _metadata("Partial.ttf")
+    partial.glyph_names = ["a", "a.sc"]
+    bare = _metadata("Bare.ttf")  # no glyph_names attribute at all
+
+    matches = typg_python.filter_cached(
+        [full, partial, bare], glyph_names=["a.sc", "f_f_i"]
+    )
+    assert [m["path"] for m in matches] == ["Full.ttf"]
+
+    comma = typg_python.filter_cached([full, partial, bare], glyph_names=["a.sc,a"])
+    assert sorted(m["path"] for m in comma) == ["Full.ttf", "Partial.ttf"]
+
+
+def test_find_glyph_names_reads_post_and_cff(fonts_dir: Path) -> None:
+    # post 2.0 names (TrueType) and CFF charset names both count.
+    arabic = typg_python.find_paths([fonts_dir], glyph_names=["A", "uni0628"])
+    assert [Path(p).name for p in arabic] == ["NotoNaskhArabic-Regular.ttf"]
+
+    math = typg_python.find([fonts_dir], glyph_names=["A.ssty"])
+    assert [Path(m["path"]).name for m in math] == ["STIX2Math.otf"]
+    assert "A.ssty" in math[0]["metadata"]["glyph_names"]
+
+
+def test_cli_find_passes_glyph_names(fonts_dir: Path) -> None:
+    result = cli.find_cli(paths=[fonts_dir], glyph_names="uni0628", paths_only=True)
+    assert [Path(p).name for p in result] == ["NotoNaskhArabic-Regular.ttf"]

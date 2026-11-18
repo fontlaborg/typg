@@ -22,6 +22,7 @@ fn metadata_with(
         script_tags: scripts.iter().map(|t| tag4(t).unwrap()).collect(),
         table_tags: tables.iter().map(|t| tag4(t).unwrap()).collect(),
         codepoints: codepoints.to_vec(),
+        glyph_names: Vec::new(),
         is_variable: variable,
         weight_class,
         width_class,
@@ -334,4 +335,52 @@ fn family_class_filters_on_subclass_when_present() {
         Some((8, 0)),
     );
     assert!(!query.matches(&different_subclass));
+}
+
+fn metadata_with_glyphs(glyphs: &[&str]) -> TypgFontFaceMeta {
+    let mut meta = metadata_with("Glyphs", &[], &[], &[], &[], &[], false, None, None, None);
+    meta.glyph_names = glyphs.iter().map(|g| g.to_string()).collect();
+    meta
+}
+
+#[test]
+fn glyph_names_when_all_present_then_matches() {
+    let query = Query::new().with_glyph_names(vec!["f_f_i".into(), "a.sc".into()]);
+    let meta = metadata_with_glyphs(&[".notdef", "a", "a.sc", "f_f_i"]);
+    assert!(
+        query.matches(&meta),
+        "all requested glyph names are present"
+    );
+}
+
+#[test]
+fn glyph_names_when_one_missing_then_rejects() {
+    let query = Query::new().with_glyph_names(vec!["a.sc".into(), "b.sc".into()]);
+    let meta = metadata_with_glyphs(&["a", "a.sc"]);
+    assert!(!query.matches(&meta), "AND semantics: b.sc is missing");
+}
+
+#[test]
+fn glyph_names_when_case_differs_then_rejects() {
+    let query = Query::new().with_glyph_names(vec!["A.sc".into()]);
+    let meta = metadata_with_glyphs(&["a.sc"]);
+    assert!(!query.matches(&meta), "glyph names are case-sensitive");
+}
+
+#[test]
+fn glyph_names_when_font_has_none_then_rejects() {
+    let query = Query::new().with_glyph_names(vec!["A".into()]);
+    let meta = metadata_with_glyphs(&[]);
+    assert!(
+        !query.matches(&meta),
+        "fonts without post/CFF names never match"
+    );
+}
+
+#[test]
+fn glyph_names_when_query_empty_then_ignored() {
+    let query = Query::new();
+    let meta = metadata_with_glyphs(&[]);
+    assert!(query.matches(&meta), "empty glyph-name filter is a no-op");
+    assert!(query.glyph_names().is_empty());
 }

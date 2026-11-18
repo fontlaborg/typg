@@ -242,6 +242,10 @@ struct CacheFindArgs {
     #[arg(short = 'u', long = "codepoints", value_delimiter = ',', value_hint = ValueHint::Other)]
     codepoints: Vec<String>,
 
+    /// Glyph names that must all be present (post 2.0 / CFF charset), e.g. a.sc,f_f_i
+    #[arg(short = 'g', long = "glyph-names", value_delimiter = ',', value_hint = ValueHint::Other)]
+    glyph_names: Vec<String>,
+
     /// Require fonts to cover this text sample
     #[arg(short = 't', long = "text")]
     text: Option<String>,
@@ -354,6 +358,10 @@ struct FindArgs {
     /// Unicode codepoints or ranges (e.g. U+0041-U+0044,B)
     #[arg(short = 'u', long = "codepoints", value_delimiter = ',', value_hint = ValueHint::Other)]
     codepoints: Vec<String>,
+
+    /// Glyph names that must all be present (post 2.0 / CFF charset), e.g. a.sc,f_f_i
+    #[arg(short = 'g', long = "glyph-names", value_delimiter = ',', value_hint = ValueHint::Other)]
+    glyph_names: Vec<String>,
 
     /// Require fonts to cover this text sample
     #[arg(short = 't', long = "text")]
@@ -1233,6 +1241,7 @@ fn build_query(args: &FindArgs) -> Result<Query> {
         &args.creator_patterns,
         &args.license_patterns,
         &args.codepoints,
+        &args.glyph_names,
         &args.text,
         args.variable,
         &args.weight,
@@ -1259,6 +1268,7 @@ fn build_query_from_parts(
     creator_patterns: &[String],
     license_patterns: &[String],
     codepoints: &[String],
+    glyph_names: &[String],
     text: &Option<String>,
     variable: bool,
     weight: &Option<String>,
@@ -1276,6 +1286,7 @@ fn build_query_from_parts(
     let weight_range = parse_optional_range(weight)?;
     let width_range = parse_optional_range(width)?;
     let family_class = parse_optional_family_class(family_class)?;
+    let glyph_names = parse_glyph_names(glyph_names);
 
     if let Some(text) = text {
         codepoints.extend(text.chars());
@@ -1292,6 +1303,7 @@ fn build_query_from_parts(
         .with_creator_patterns(creator_patterns)
         .with_license_patterns(license_patterns)
         .with_codepoints(codepoints)
+        .with_glyph_names(glyph_names)
         .require_variable(variable)
         .with_weight_range(weight_range)
         .with_width_range(width_range)
@@ -1308,6 +1320,17 @@ fn compile_patterns(patterns: &[String]) -> Result<Vec<Regex>> {
         .iter()
         .map(|p| Regex::new(p).with_context(|| format!("invalid regex: {p}")))
         .collect()
+}
+
+/// Trim glyph names, drop empties, and dedup while keeping input order.
+fn parse_glyph_names(raw: &[String]) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for name in raw.iter().map(|n| n.trim()).filter(|n| !n.is_empty()) {
+        if !names.iter().any(|n| n == name) {
+            names.push(name.to_string());
+        }
+    }
+    names
 }
 
 fn parse_codepoints(raw: &[String]) -> Result<Vec<char>> {
@@ -1713,6 +1736,7 @@ fn run_cache_find(args: CacheFindArgs) -> Result<()> {
         &args.creator_patterns,
         &args.license_patterns,
         &args.codepoints,
+        &args.glyph_names,
         &args.text,
         args.variable,
         &args.weight,
@@ -2053,6 +2077,7 @@ fn run_cache_find_index(args: CacheFindArgs) -> Result<()> {
         &args.creator_patterns,
         &args.license_patterns,
         &args.codepoints,
+        &args.glyph_names,
         &args.text,
         args.variable,
         &args.weight,

@@ -57,6 +57,9 @@ struct MetadataInput {
     /// Unicode characters this font can render
     #[pyo3(default)]
     codepoints: Vec<String>,
+    /// Glyph names from `post` format 2.0 or the `CFF ` charset
+    #[pyo3(default)]
+    glyph_names: Vec<String>,
     /// Indicates whether this is a variable font
     #[pyo3(default)]
     is_variable: bool,
@@ -105,6 +108,7 @@ struct MetadataInput {
         tables=None,
         names=None,
         codepoints=None,
+        glyph_names=None,
         text=None,
         weight=None,
         width=None,
@@ -126,6 +130,7 @@ fn find_py(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
+    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -156,6 +161,7 @@ fn find_py(
         tables,
         names,
         codepoints,
+        glyph_names,
         text,
         weight,
         width,
@@ -189,6 +195,7 @@ fn find_py(
         tables=None,
         names=None,
         codepoints=None,
+        glyph_names=None,
         text=None,
         weight=None,
         width=None,
@@ -209,6 +216,7 @@ fn find_paths_py(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
+    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -238,6 +246,7 @@ fn find_paths_py(
         tables,
         names,
         codepoints,
+        glyph_names,
         text,
         weight,
         width,
@@ -273,6 +282,7 @@ fn find_paths_py(
         tables=None,
         names=None,
         codepoints=None,
+        glyph_names=None,
         text=None,
         weight=None,
         width=None,
@@ -292,6 +302,7 @@ fn filter_cached_py(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
+    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -310,6 +321,7 @@ fn filter_cached_py(
         tables,
         names,
         codepoints,
+        glyph_names,
         text,
         weight,
         width,
@@ -338,6 +350,7 @@ fn filter_cached_py(
         tables=None,
         names=None,
         codepoints=None,
+        glyph_names=None,
         text=None,
         weight=None,
         width=None,
@@ -357,6 +370,7 @@ fn find_indexed_py(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
+    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -372,6 +386,7 @@ fn find_indexed_py(
         tables,
         names,
         codepoints,
+        glyph_names,
         text,
         weight,
         width,
@@ -432,6 +447,7 @@ fn convert_metadata(entries: Vec<MetadataInput>) -> Result<Vec<TypgFontFaceMatch
                     script_tags: parse_tag_list(&entry.script_tags)?,
                     table_tags: parse_tag_list(&entry.table_tags)?,
                     codepoints: parse_codepoints(&entry.codepoints)?,
+                    glyph_names: entry.glyph_names,
                     is_variable: entry.is_variable,
                     weight_class: entry.weight_class,
                     width_class: entry.width_class,
@@ -465,6 +481,7 @@ fn build_query(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
+    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -500,10 +517,23 @@ fn build_query(
         .with_creator_patterns(creator_patterns)
         .with_license_patterns(license_patterns)
         .with_codepoints(cps)
+        .with_glyph_names(parse_glyph_names(&glyph_names.unwrap_or_default()))
         .require_variable(variable)
         .with_weight_range(weight_range)
         .with_width_range(width_range)
         .with_family_class(family_class))
+}
+
+/// Split comma-separated glyph names, trim, drop empties, dedup (order kept).
+fn parse_glyph_names(raw: &[String]) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for name in raw.iter().flat_map(|chunk| chunk.split(',')) {
+        let name = name.trim();
+        if !name.is_empty() && !names.iter().any(|n| n == name) {
+            names.push(name.to_string());
+        }
+    }
+    names
 }
 
 fn parse_codepoints(raw: &[String]) -> Result<Vec<char>> {
@@ -583,6 +613,7 @@ fn to_py_matches(py: Python<'_>, matches: Vec<TypgFontFaceMatch>) -> PyResult<Ve
                     .map(|c| c.to_string())
                     .collect::<Vec<_>>(),
             )?;
+            meta_dict.set_item("glyph_names", meta.glyph_names.clone())?;
             meta_dict.set_item("is_variable", meta.is_variable)?;
             meta_dict.set_item("weight_class", meta.weight_class)?;
             meta_dict.set_item("width_class", meta.width_class)?;
@@ -639,6 +670,7 @@ mod tests {
             script_tags: Vec::new(),
             table_tags: Vec::new(),
             codepoints: vec!["A".into()],
+            glyph_names: Vec::new(),
             is_variable: variable,
             ttc_index: None,
             weight_class: None,
@@ -671,6 +703,7 @@ mod tests {
                 None,
                 None,
                 Some(vec!["Pro".into()]),
+                None,
                 None,
                 None,
                 None,
@@ -717,6 +750,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
                 false,
             )
             .unwrap_err();
@@ -748,6 +782,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
                 false,
                 false,
                 None,
@@ -767,6 +802,7 @@ mod tests {
         Python::attach(|_| {
             let err = find_paths_py(
                 Vec::new(),
+                None,
                 None,
                 None,
                 None,
@@ -812,6 +848,7 @@ mod tests {
                 script_tags: vec![Tag::new(b"latn")],
                 table_tags: Vec::new(),
                 codepoints: vec!['a', 'b', 'c'],
+                glyph_names: Vec::new(),
                 is_variable: true,
                 weight_class: Some(400),
                 width_class: Some(5),
@@ -862,6 +899,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
                 true,
             )
             .unwrap();
@@ -873,6 +911,7 @@ mod tests {
                 index_path.clone(),
                 None,
                 Some(vec!["liga".into()]), // Not in the index
+                None,
                 None,
                 None,
                 None,

@@ -4,6 +4,7 @@ made by FontLab https://www.fontlab.com/
 
 | Date (UTC) | Goal | Notes | Tests |
 | --- | --- | --- | --- |
+| 2026-11-18 | Glyph-name search | Added `--glyph-names/-g` (post 2.0 + CFF charset, AND semantics) across core Query, JSON cache, LMDB index (with legacy-record compat), CLI, HTTP server and Python bindings. | cargo test --workspace (with and without --features hpindex) all passed; pytest py/typg-python/tests (12 passed) |
 | 2026-05-26 | Details Keyword Strict Renaming | Strictly renamed 10 details keywords to shorter forms (var, wt, wd, panf, scr, scr_n, tab, tab_n, crea, lic) and removed all legacy alias support. Updated CLI help documentation. | cargo test --workspace --features hpindex (56 tests passed); uv run pytest (9 passed) |
 | 2026-05-26 | Custom Details & CSV Output | Implemented name table detail extraction (psname, tfname, lfname, tsname, lsname), CLI --details / -d presets/custom filters, --csv output, and PyO3 Python binding parity. | cargo test --workspace --features hpindex (56 tests passed); uv run pytest (9 passed) |
 | 2025-12-13 | Fix typg-python build | Repaired `convert_metadata()` definition (brace mismatch) and restored `#[pymodule]` so PyO3 module builds; updated typg-core doctest snippet to match current API. | cargo test --workspace; maturin pep517 build-wheel --compatibility off (typg-python) |

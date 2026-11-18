@@ -46,6 +46,7 @@ mod tests {
                 script_tags: Vec::new(),
                 table_tags: Vec::new(),
                 codepoints: Vec::new(),
+                glyph_names: Vec::new(),
                 is_variable: false,
                 weight_class: None,
                 width_class: None,

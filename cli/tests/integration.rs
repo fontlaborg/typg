@@ -690,3 +690,107 @@ fn cache_find_details_and_csv() {
     assert!(lines[1].contains("Noto Naskh Arabic"));
     assert!(lines[1].contains("ttf"));
 }
+
+/// Run `typg find` with extra args against the fixtures, returning sorted file names.
+fn find_file_names(fonts: &PathBuf, args: &[&str]) -> Vec<String> {
+    let output = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .arg("find")
+        .args(args)
+        .arg(fonts)
+        .output()
+        .expect("run typg");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let mut names: Vec<String> = String::from_utf8(output.stdout)
+        .expect("utf8 stdout")
+        .lines()
+        .map(|l| l.rsplit('/').next().unwrap_or(l).to_string())
+        .collect();
+    names.sort();
+    names
+}
+
+/// `--glyph-names` reads `post` 2.0 names (TrueType) and requires every name (AND).
+#[test]
+fn find_glyph_names_requires_all_names() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let arabic = find_file_names(&fonts, &["--glyph-names", "uni0628"]);
+    assert_eq!(arabic, vec!["NotoNaskhArabic-Regular.ttf"]);
+
+    let both = find_file_names(&fonts, &["-g", "A,uni0628"]);
+    assert_eq!(
+        both,
+        vec!["NotoNaskhArabic-Regular.ttf"],
+        "AND across names"
+    );
+
+    let repeated = find_file_names(&fonts, &["-g", "a.sc", "-g", "uni0628"]);
+    assert!(repeated.is_empty(), "no fixture has both a.sc and uni0628");
+
+    let none = find_file_names(&fonts, &["-g", "no.such.glyph"]);
+    assert!(none.is_empty());
+}
+
+/// `--glyph-names` also reads names from the `CFF ` charset.
+#[test]
+fn find_glyph_names_reads_cff_charset() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+
+    let ssty = find_file_names(&fonts, &["-g", "A.ssty,A.ssty2"]);
+    assert_eq!(ssty, vec!["STIX2Math.otf"]);
+}
+
+/// The cache stores glyph names, so `cache find --glyph-names` matches too.
+#[test]
+fn cache_find_glyph_names() {
+    let fonts = match fonts_dir() {
+        Some(dir) => dir,
+        None => return, // skip when fixtures are unavailable
+    };
+    let tmp = tempdir().expect("tempdir");
+    let cache_path = tmp.path().join("cache.json");
+
+    let add = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args(["cache", "add", "--quiet", "--cache-path"])
+        .arg(&cache_path)
+        .arg(&fonts)
+        .output()
+        .expect("run typg cache add");
+    assert!(
+        add.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&add.stderr)
+    );
+
+    let found = Command::new(env!("CARGO_BIN_EXE_typg"))
+        .args([
+            "cache",
+            "find",
+            "--paths",
+            "-g",
+            "uni0628,A",
+            "--cache-path",
+        ])
+        .arg(&cache_path)
+        .output()
+        .expect("run typg cache find");
+    assert!(
+        found.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&found.stderr)
+    );
+    let stdout = String::from_utf8(found.stdout).expect("utf8");
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 1, "got: {stdout}");
+    assert!(lines[0].ends_with("NotoNaskhArabic-Regular.ttf"));
+}

@@ -119,6 +119,16 @@ pub struct TypgFontFaceMeta {
     /// 20,000+ codepoints.
     pub codepoints: Vec<char>,
 
+    /// Glyph names stored in the font's `post` table (format 2.0) or the
+    /// `CFF ` charset.
+    ///
+    /// Names that fontations would synthesize (e.g. `gid42` for fonts with
+    /// `post` format 3.0) are excluded, so this list only holds names the
+    /// font actually carries. Sorted and deduplicated. Missing in caches
+    /// written before this field existed (deserializes as empty).
+    #[serde(default)]
+    pub glyph_names: Vec<String>,
+
     /// Whether this font has an `fvar` table, making it a variable font.
     ///
     /// Variable fonts contain continuous design axes (weight, width, etc.)
@@ -403,6 +413,7 @@ fn load_metadata(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
         let mut script_tags = collect_scripts(&font);
         let mut table_tags = collect_tables(&font);
         let mut codepoints = collect_codepoints(&sfont);
+        let glyph_names = collect_glyph_names(&sfont);
         let fvar_tag = Tag::new(b"fvar");
         let is_variable = table_tags.contains(&fvar_tag);
         let (weight_class, width_class, family_class) = collect_classification(&font);
@@ -431,6 +442,7 @@ fn load_metadata(path: &Path) -> Result<Vec<TypgFontFaceMatch>> {
                 script_tags,
                 table_tags,
                 codepoints,
+                glyph_names,
                 is_variable,
                 weight_class,
                 width_class,
@@ -536,6 +548,25 @@ fn collect_codepoints(font: &SkrifaFontRef) -> Vec<char> {
         }
     }
     cps
+}
+
+/// Collect the glyph names stored in the font (`post` format 2.0 or the
+/// `CFF ` charset), sorted and deduplicated.
+///
+/// skrifa's `GlyphNames` synthesizes names (`gidN`) when the font carries
+/// none; those are skipped so searching for e.g. `gid5` cannot match a font
+/// that has no real names. CFF2 fonts carry no names and yield nothing unless
+/// they also have a `post` format 2.0 table.
+fn collect_glyph_names(font: &SkrifaFontRef) -> Vec<String> {
+    let mut names: Vec<String> = skrifa::GlyphNames::new(font)
+        .iter()
+        .filter(|(_, name)| !name.is_synthesized())
+        .map(|(_, name)| name.as_str().to_string())
+        .filter(|name| !name.is_empty())
+        .collect();
+    names.sort_unstable();
+    names.dedup();
+    names
 }
 
 /// Extract identifying name strings and details from the font's `name` table.

@@ -98,6 +98,15 @@ def _gather_paths(
     return [str(p) for p in _dedup_paths(collected)]
 
 
+def _as_list(value: Sequence[str] | str | None) -> list[str] | None:
+    """Normalise a Fire argument: a bare string (``--glyph_names=a.sc``) becomes a one-item list."""
+    if not value:
+        return None
+    if isinstance(value, str):
+        return [value]
+    return [str(v) for v in value]
+
+
 def find_cli(
     paths: Sequence[Path | str] | None = None,
     axes: Sequence[str] | None = None,
@@ -106,6 +115,7 @@ def find_cli(
     tables: Sequence[str] | None = None,
     names: Sequence[str] | None = None,
     codepoints: Sequence[str] | None = None,
+    glyph_names: Sequence[str] | str | None = None,
     text: str | None = None,
     weight: str | None = None,
     width: str | None = None,
@@ -134,6 +144,7 @@ def find_cli(
             tables=list(tables) if tables else None,
             names=list(names) if names else None,
             codepoints=list(codepoints) if codepoints else None,
+            glyph_names=_as_list(glyph_names),
             text=text,
             weight=weight,
             width=width,
@@ -151,6 +162,7 @@ def find_cli(
         tables=list(tables) if tables else None,
         names=list(names) if names else None,
         codepoints=list(codepoints) if codepoints else None,
+        glyph_names=_as_list(glyph_names),
         text=text,
         weight=weight,
         width=width,

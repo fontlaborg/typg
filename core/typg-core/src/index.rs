@@ -65,6 +65,11 @@ pub struct IndexedFontMeta {
     /// Legacy Subfamily Name (ID 2)
     #[serde(default)]
     pub lsname: Option<String>,
+    /// Glyph names from `post` format 2.0 or the `CFF ` charset, sorted.
+    /// Must stay the last field: [`deserialize_meta`] relies on that to read
+    /// records written before glyph names were indexed.
+    #[serde(default)]
+    pub glyph_names: Vec<String>,
 }
 
 /// Stored record mapping a path hash to its font ID and last-modified time.
@@ -235,6 +240,7 @@ impl<'a> IndexWriter<'a> {
             lfname: meta.lfname.clone(),
             tsname: meta.tsname.clone(),
             lsname: meta.lsname.clone(),
+            glyph_names: meta.glyph_names.clone(),
         };
 
         let meta_bytes = bincode::serialize(&meta_to_store)
@@ -594,13 +600,38 @@ impl<'a> IndexReader<'a> {
             }
         }
 
+        // Glyph-name filter: every requested name must be present (AND).
+        if !query.glyph_names().is_empty() {
+            let available: HashSet<&str> = meta.glyph_names.iter().map(String::as_str).collect();
+            if !query
+                .glyph_names()
+                .iter()
+                .all(|name| available.contains(name.as_str()))
+            {
+                return Ok(false);
+            }
+        }
+
         Ok(true)
     }
 }
 
+/// bincode 1.x encodes an empty `Vec` as a zero `u64` length prefix.
+const EMPTY_VEC_BINCODE: [u8; 8] = [0; 8];
+
 /// Deserialize metadata from bytes.
+///
+/// Records written before `glyph_names` existed end one field early; bincode
+/// ignores `#[serde(default)]`, so on failure we retry with an empty trailing
+/// `Vec` appended. Such fonts carry no glyph names until re-indexed.
 fn deserialize_meta(bytes: &[u8]) -> Result<IndexedFontMeta> {
-    bincode::deserialize(bytes).map_err(|e| anyhow::anyhow!("bincode deserialize: {e}"))
+    bincode::deserialize(bytes).or_else(|first_err| {
+        let mut padded = Vec::with_capacity(bytes.len() + EMPTY_VEC_BINCODE.len());
+        padded.extend_from_slice(bytes);
+        padded.extend_from_slice(&EMPTY_VEC_BINCODE);
+        bincode::deserialize(&padded)
+            .map_err(|_| anyhow::anyhow!("bincode deserialize: {first_err}"))
+    })
 }
 
 /// Convert metadata to TypgFontFaceMatch.
@@ -619,6 +650,7 @@ fn hydrate_match(meta: &IndexedFontMeta) -> TypgFontFaceMatch {
             script_tags: Vec::new(),  // Not stored in indexed form
             table_tags: Vec::new(),   // Not stored in indexed form
             codepoints: Vec::new(),   // Stored as bitmap
+            glyph_names: meta.glyph_names.clone(),
             is_variable: meta.is_variable,
             weight_class: meta.weight_class,
             width_class: meta.width_class,
@@ -710,6 +742,7 @@ mod tests {
             script_tags: script_tags.to_vec(),
             table_tags: Vec::new(),
             codepoints: codepoints.to_vec(),
+            glyph_names: Vec::new(),
             is_variable,
             weight_class,
             width_class,
@@ -722,6 +755,83 @@ mod tests {
             tsname: None,
             lsname: None,
         }
+    }
+
+    #[test]
+    fn glyph_name_filter_when_indexed_then_requires_all() {
+        let dir = TempDir::new().unwrap();
+        let index = FontIndex::open(dir.path()).unwrap();
+        let mut meta = make_mock_meta(
+            vec!["Glyph Font".to_string()],
+            &[],
+            &[],
+            &['a'],
+            false,
+            None,
+            None,
+            None,
+        );
+        meta.glyph_names = vec!["a".into(), "a.sc".into(), "f_f_i".into()];
+        let mut writer = index.writer().unwrap();
+        writer
+            .add_font(
+                Path::new("/test/glyphs.otf"),
+                None,
+                SystemTime::UNIX_EPOCH,
+                &meta,
+            )
+            .unwrap();
+        writer.commit().unwrap();
+
+        let reader = index.reader().unwrap();
+        let hit = Query::new().with_glyph_names(vec!["a.sc".into(), "f_f_i".into()]);
+        let found = reader.find(&hit).unwrap();
+        assert_eq!(found.len(), 1, "both glyph names present");
+        assert_eq!(found[0].metadata.glyph_names, meta.glyph_names);
+
+        let miss = Query::new().with_glyph_names(vec!["a.sc".into(), "b.sc".into()]);
+        assert!(reader.find(&miss).unwrap().is_empty(), "b.sc missing");
+    }
+
+    #[test]
+    fn deserialize_meta_when_record_predates_glyph_names_then_defaults_empty() {
+        /// Layout of `IndexedFontMeta` before `glyph_names` was added.
+        #[derive(Serialize)]
+        struct LegacyMeta {
+            path: String,
+            ttc_index: Option<u32>,
+            names: Vec<String>,
+            is_variable: bool,
+            weight_class: Option<u16>,
+            width_class: Option<u16>,
+            family_class: Option<(u8, u8)>,
+            cmap_bitmap: Vec<u8>,
+            psname: Option<String>,
+            tfname: Option<String>,
+            lfname: Option<String>,
+            tsname: Option<String>,
+            lsname: Option<String>,
+        }
+        let legacy = LegacyMeta {
+            path: "/old/font.ttf".into(),
+            ttc_index: None,
+            names: vec!["Old".into()],
+            is_variable: false,
+            weight_class: Some(400),
+            width_class: None,
+            family_class: None,
+            cmap_bitmap: Vec::new(),
+            psname: Some("Old-Regular".into()),
+            tfname: None,
+            lfname: None,
+            tsname: None,
+            lsname: Some("Regular".into()),
+        };
+        let bytes = bincode::serialize(&legacy).unwrap();
+        let meta = deserialize_meta(&bytes).expect("legacy record must still load");
+        assert_eq!(meta.path, "/old/font.ttf");
+        assert_eq!(meta.lsname.as_deref(), Some("Regular"));
+        assert!(meta.glyph_names.is_empty());
     }
 
     #[test]
