@@ -181,6 +181,9 @@ pub struct IndexWriter<'a> {
 
 impl<'a> IndexWriter<'a> {
     /// Check if a font needs re-indexing based on path and mtime.
+    ///
+    /// Records written before glyph names were indexed also need an update,
+    /// so a plain `cache add --index` backfills them.
     pub fn needs_update(&self, path: &Path, mtime: SystemTime) -> Result<bool> {
         let path_hash = hash_path(path);
         let mtime_secs = mtime
@@ -191,7 +194,15 @@ impl<'a> IndexWriter<'a> {
         if let Some(bytes) = self.index.db_path_to_id.get(&self.wtxn, &path_hash)? {
             if bytes.len() == std::mem::size_of::<PathEntry>() {
                 let entry: PathEntry = *bytemuck::from_bytes(bytes);
-                return Ok(entry.mtime_secs != mtime_secs);
+                if entry.mtime_secs != mtime_secs {
+                    return Ok(true);
+                }
+                return Ok(
+                    match self.index.db_metadata.get(&self.wtxn, &entry.font_id)? {
+                        Some(meta_bytes) => is_legacy_record(meta_bytes),
+                        None => true,
+                    },
+                );
             }
         }
         Ok(true) // Not found, needs indexing
@@ -626,12 +637,28 @@ const EMPTY_VEC_BINCODE: [u8; 8] = [0; 8];
 /// `Vec` appended. Such fonts carry no glyph names until re-indexed.
 fn deserialize_meta(bytes: &[u8]) -> Result<IndexedFontMeta> {
     bincode::deserialize(bytes).or_else(|first_err| {
+        // Only a clean end-of-input can be a pre-glyph-names record.
+        if !is_eof_error(&first_err) {
+            return Err(anyhow::anyhow!("bincode deserialize: {first_err}"));
+        }
         let mut padded = Vec::with_capacity(bytes.len() + EMPTY_VEC_BINCODE.len());
         padded.extend_from_slice(bytes);
         padded.extend_from_slice(&EMPTY_VEC_BINCODE);
         bincode::deserialize(&padded)
             .map_err(|_| anyhow::anyhow!("bincode deserialize: {first_err}"))
     })
+}
+
+/// True if `bytes` is a record written before `glyph_names` existed (or is unreadable).
+fn is_legacy_record(bytes: &[u8]) -> bool {
+    bincode::deserialize::<IndexedFontMeta>(bytes).is_err()
+}
+
+fn is_eof_error(err: &bincode::Error) -> bool {
+    matches!(
+        err.as_ref(),
+        bincode::ErrorKind::Io(io) if io.kind() == std::io::ErrorKind::UnexpectedEof
+    )
 }
 
 /// Convert metadata to TypgFontFaceMatch.
@@ -832,6 +859,53 @@ mod tests {
         assert_eq!(meta.path, "/old/font.ttf");
         assert_eq!(meta.lsname.as_deref(), Some("Regular"));
         assert!(meta.glyph_names.is_empty());
+        assert!(
+            is_legacy_record(&bytes),
+            "old layout must be flagged for re-index"
+        );
+        let current = bincode::serialize(&meta).unwrap();
+        assert!(!is_legacy_record(&current));
+        assert_eq!(deserialize_meta(&current).unwrap().path, "/old/font.ttf");
+    }
+
+    #[test]
+    fn needs_update_when_record_is_legacy_then_true() {
+        let dir = TempDir::new().unwrap();
+        let index = FontIndex::open(dir.path()).unwrap();
+        let path = Path::new("/test/legacy.ttf");
+        let mtime = SystemTime::UNIX_EPOCH;
+        let meta = make_mock_meta(vec!["L".into()], &[], &[], &[], false, None, None, None);
+
+        let mut writer = index.writer().unwrap();
+        let font_id = writer.add_font(path, None, mtime, &meta).unwrap();
+        assert!(
+            !writer.needs_update(path, mtime).unwrap(),
+            "fresh record is current"
+        );
+
+        // Overwrite the record with the pre-glyph-names layout (drop the
+        // trailing empty Vec length prefix).
+        let current = bincode::serialize(
+            &deserialize_meta(
+                index
+                    .db_metadata
+                    .get(&writer.wtxn, &font_id)
+                    .unwrap()
+                    .unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let legacy = &current[..current.len() - EMPTY_VEC_BINCODE.len()];
+        index
+            .db_metadata
+            .put(&mut writer.wtxn, &font_id, legacy)
+            .unwrap();
+        assert!(
+            writer.needs_update(path, mtime).unwrap(),
+            "legacy record needs re-index"
+        );
+        writer.commit().unwrap();
     }
 
     #[test]

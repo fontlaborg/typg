@@ -242,7 +242,7 @@ struct CacheFindArgs {
     #[arg(short = 'u', long = "codepoints", value_delimiter = ',', value_hint = ValueHint::Other)]
     codepoints: Vec<String>,
 
-    /// Glyph names that must all be present (post 2.0 / CFF charset), e.g. a.sc,f_f_i
+    /// Glyph names that must all be present (from post / CFF charset; exact, case-sensitive), e.g. a.sc,f_f_i
     #[arg(short = 'g', long = "glyph-names", value_delimiter = ',', value_hint = ValueHint::Other)]
     glyph_names: Vec<String>,
 
@@ -359,7 +359,7 @@ struct FindArgs {
     #[arg(short = 'u', long = "codepoints", value_delimiter = ',', value_hint = ValueHint::Other)]
     codepoints: Vec<String>,
 
-    /// Glyph names that must all be present (post 2.0 / CFF charset), e.g. a.sc,f_f_i
+    /// Glyph names that must all be present (from post / CFF charset; exact, case-sensitive), e.g. a.sc,f_f_i
     #[arg(short = 'g', long = "glyph-names", value_delimiter = ',', value_hint = ValueHint::Other)]
     glyph_names: Vec<String>,
 
@@ -1322,10 +1322,15 @@ fn compile_patterns(patterns: &[String]) -> Result<Vec<Regex>> {
         .collect()
 }
 
-/// Trim glyph names, drop empties, and dedup while keeping input order.
+/// Split on commas, trim, drop empties, and dedup while keeping input order.
 fn parse_glyph_names(raw: &[String]) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
-    for name in raw.iter().map(|n| n.trim()).filter(|n| !n.is_empty()) {
+    for name in raw
+        .iter()
+        .flat_map(|chunk| chunk.split(','))
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+    {
         if !names.iter().any(|n| n == name) {
             names.push(name.to_string());
         }

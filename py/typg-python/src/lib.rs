@@ -108,7 +108,6 @@ struct MetadataInput {
         tables=None,
         names=None,
         codepoints=None,
-        glyph_names=None,
         text=None,
         weight=None,
         width=None,
@@ -117,7 +116,8 @@ struct MetadataInput {
         license=None,
         variable=false,
         follow_symlinks=false,
-        jobs=None
+        jobs=None,
+        glyph_names=None
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -130,7 +130,6 @@ fn find_py(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
-    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -140,6 +139,7 @@ fn find_py(
     variable: bool,
     follow_symlinks: bool,
     jobs: Option<usize>,
+    glyph_names: Option<Vec<String>>,
 ) -> PyResult<Vec<Py<PyAny>>> {
     if paths.is_empty() {
         return Err(PyValueError::new_err(
@@ -161,7 +161,6 @@ fn find_py(
         tables,
         names,
         codepoints,
-        glyph_names,
         text,
         weight,
         width,
@@ -169,6 +168,7 @@ fn find_py(
         creator,
         license,
         variable,
+        glyph_names,
     )
     .map_err(to_py_err)?;
 
@@ -195,7 +195,6 @@ fn find_py(
         tables=None,
         names=None,
         codepoints=None,
-        glyph_names=None,
         text=None,
         weight=None,
         width=None,
@@ -204,7 +203,8 @@ fn find_py(
         license=None,
         variable=false,
         follow_symlinks=false,
-        jobs=None
+        jobs=None,
+        glyph_names=None
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -216,7 +216,6 @@ fn find_paths_py(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
-    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -226,6 +225,7 @@ fn find_paths_py(
     variable: bool,
     follow_symlinks: bool,
     jobs: Option<usize>,
+    glyph_names: Option<Vec<String>>,
 ) -> PyResult<Vec<String>> {
     if paths.is_empty() {
         return Err(PyValueError::new_err(
@@ -246,7 +246,6 @@ fn find_paths_py(
         tables,
         names,
         codepoints,
-        glyph_names,
         text,
         weight,
         width,
@@ -254,6 +253,7 @@ fn find_paths_py(
         creator,
         license,
         variable,
+        glyph_names,
     )
     .map_err(to_py_err)?;
 
@@ -282,14 +282,14 @@ fn find_paths_py(
         tables=None,
         names=None,
         codepoints=None,
-        glyph_names=None,
         text=None,
         weight=None,
         width=None,
         family_class=None,
         creator=None,
         license=None,
-        variable=false
+        variable=false,
+        glyph_names=None
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -302,7 +302,6 @@ fn filter_cached_py(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
-    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -310,6 +309,7 @@ fn filter_cached_py(
     creator: Option<Vec<String>>,
     license: Option<Vec<String>>,
     variable: bool,
+    glyph_names: Option<Vec<String>>,
 ) -> PyResult<Vec<Py<PyAny>>> {
     // Convert Python metadata input to internal Rust structures
     let metadata = convert_metadata(entries).map_err(to_py_err)?;
@@ -321,7 +321,6 @@ fn filter_cached_py(
         tables,
         names,
         codepoints,
-        glyph_names,
         text,
         weight,
         width,
@@ -329,6 +328,7 @@ fn filter_cached_py(
         creator,
         license,
         variable,
+        glyph_names,
     )
     .map_err(to_py_err)?;
 
@@ -350,14 +350,14 @@ fn filter_cached_py(
         tables=None,
         names=None,
         codepoints=None,
-        glyph_names=None,
         text=None,
         weight=None,
         width=None,
         family_class=None,
         creator=None,
         license=None,
-        variable=false
+        variable=false,
+        glyph_names=None
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -370,7 +370,6 @@ fn find_indexed_py(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
-    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -378,6 +377,7 @@ fn find_indexed_py(
     creator: Option<Vec<String>>,
     license: Option<Vec<String>>,
     variable: bool,
+    glyph_names: Option<Vec<String>>,
 ) -> PyResult<Vec<Py<PyAny>>> {
     let query = build_query(
         axes,
@@ -386,7 +386,6 @@ fn find_indexed_py(
         tables,
         names,
         codepoints,
-        glyph_names,
         text,
         weight,
         width,
@@ -394,6 +393,7 @@ fn find_indexed_py(
         creator,
         license,
         variable,
+        glyph_names,
     )
     .map_err(to_py_err)?;
 
@@ -481,7 +481,6 @@ fn build_query(
     tables: Option<Vec<String>>,
     names: Option<Vec<String>>,
     codepoints: Option<Vec<String>>,
-    glyph_names: Option<Vec<String>>,
     text: Option<String>,
     weight: Option<String>,
     width: Option<String>,
@@ -489,6 +488,7 @@ fn build_query(
     creator: Option<Vec<String>>,
     license: Option<Vec<String>>,
     variable: bool,
+    glyph_names: Option<Vec<String>>,
 ) -> Result<Query> {
     let axes = parse_tag_list(&axes.unwrap_or_default())?;
     let features = parse_tag_list(&features.unwrap_or_default())?;
@@ -710,8 +710,8 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 true,
+                None,
             );
 
             assert!(result.is_ok(), "expected Ok from filter_cached_py");
@@ -750,8 +750,8 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 false,
+                None,
             )
             .unwrap_err();
 
@@ -782,9 +782,9 @@ mod tests {
                 None,
                 None,
                 None,
+                false,
+                false,
                 None,
-                false,
-                false,
                 None,
             )
             .unwrap_err();
@@ -814,9 +814,9 @@ mod tests {
                 None,
                 None,
                 None,
+                false,
+                false,
                 None,
-                false,
-                false,
                 None,
             )
             .unwrap_err();
@@ -899,8 +899,8 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 true,
+                None,
             )
             .unwrap();
             assert_eq!(matches.len(), 1);
@@ -921,8 +921,8 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 false,
+                None,
             )
             .unwrap();
             assert_eq!(no_matches.len(), 0);

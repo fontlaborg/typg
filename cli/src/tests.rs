@@ -537,3 +537,14 @@ fn test_extract_property_values() {
         serde_json::Value::String("TestFont.ttc#1".to_string())
     );
 }
+
+#[test]
+fn parse_glyph_names_splits_trims_and_dedups() {
+    let raw = vec![
+        " a.sc,f_f_i ".to_string(),
+        "a.sc".into(),
+        ",".into(),
+        "uni0628".into(),
+    ];
+    assert_eq!(parse_glyph_names(&raw), vec!["a.sc", "f_f_i", "uni0628"]);
+}
