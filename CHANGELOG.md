@@ -3,6 +3,12 @@
 made by FontLab https://www.fontlab.com/
 
 ## v0.0.0 (unreleased)
+
+### Packaging fix: `import typg` works from the PyPI wheel
+
+- The wheel now ships the public `typg` package next to `typg_python` (`[tool.maturin] include` in `py/typg-python/pyproject.toml`). maturin only packaged the directory holding the native module, so `import typg` failed in 5.0.23 and 5.0.24.
+- CI builds a wheel, installs it into a clean venv and imports both `typg` and `typg_python`, so this cannot regress silently.
+
 - **Glyph-name search (`--glyph-names` / `-g`)**:
   - `typg find` and `typg cache find` accept glyph names (comma-separated or repeated). A font matches only if it contains *all* of them; matching is exact and case-sensitive.
   - Names come from `post` format 2.0 or the `CFF ` charset (`skrifa::GlyphNames`); synthesized `gidN` fallbacks are excluded.

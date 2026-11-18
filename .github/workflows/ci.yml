@@ -101,5 +101,13 @@ jobs:
         run: |
           source .venv/bin/activate
           pytest py/typg-python/tests
+      - name: Wheel smoke test (installed wheel exposes typg and typg_python)
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          maturin build --manifest-path py/typg-python/Cargo.toml --locked -o wheel-dist
+          uv venv /tmp/wheel-venv
+          uv pip install --python /tmp/wheel-venv/bin/python wheel-dist/*.whl
+          cd /tmp && /tmp/wheel-venv/bin/python -I -c "import typg, typg_python; assert callable(typg.find); print('typg', typg.__version__)"
       - name: Rust tests for bindings
         run: cargo test -p typg-python --tests

@@ -28,3 +28,6 @@ local_scheme = "no-local-version"
 features = ["extension-module"]
 python-source = "python"
 module-name = "typg_python._typg_python"
+# Ship the public `typg` shim package next to `typg_python` (maturin only
+# auto-packages the package that contains `module-name`).
+include = [{ path = "python/typg/**/*.py", format = "wheel" }]
